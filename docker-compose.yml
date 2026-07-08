@@ -1,8 +1,8 @@
 services:
-  tgflix:
+  feiying:
     build: .
-    image: tgflix:latest
-    container_name: tgflix
+    image: feiying:latest
+    container_name: feiying
     restart: unless-stopped
     user: "1000:1001"        # ← 你媒体服务器用户的 uid:gid(飞牛 admin 一般 1000:1001;`id 用户名` 查)
     ports:

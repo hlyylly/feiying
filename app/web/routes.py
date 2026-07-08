@@ -10,7 +10,7 @@ TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 
 
 def create_app():
-    app = FastAPI(title="TGFlix")
+    app = FastAPI(title="飞影")
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request):

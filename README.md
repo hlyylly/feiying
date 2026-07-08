@@ -1,6 +1,6 @@
-# TGFlix — 发个片名，自动入库到飞牛/Emby
+# 飞影 feiying — 发个片名，自动入库到飞牛/Emby
 
-在 Telegram **收藏夹发一个片名**（电影或剧名，甚至"诺兰讲原子弹那部"这种模糊描述），TGFlix 就自动帮你搜到、生成 `.strm`、进媒体库，**点开秒播、边看边缓存、剧集自动追更**。
+在 Telegram **收藏夹发一个片名**（电影或剧名，甚至"诺兰讲原子弹那部"这种模糊描述），飞影 就自动帮你搜到、生成 `.strm`、进媒体库，**点开秒播、边看边缓存、剧集自动追更**。
 
 把「TG 资源发现 → 智能匹配 → 缓存流播 → 飞牛/Emby 入库」全流程做成了一个自托管的小软件，一个 Docker 容器搞定。
 
@@ -24,9 +24,9 @@
 ```yaml
 # docker-compose.yml
 services:
-  tgflix:
-    image: YOURNAME/tgflix:latest      # ← 换成实际的 Docker Hub 镜像名
-    container_name: tgflix
+  feiying:
+    image: YOURNAME/feiying:latest      # ← 换成实际的 Docker Hub 镜像名
+    container_name: feiying
     restart: unless-stopped
     user: "1000:1001"                  # ← 你媒体服务器用户的 uid:gid(飞牛 admin 一般是1000:1001,`id 用户名` 查)
     ports:

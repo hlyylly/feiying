@@ -1,7 +1,7 @@
 """配置读写。所有配置落地 DATA_DIR/config.json，单实例单账号。"""
 import json, os
 
-DATA_DIR = os.environ.get("TGFLIX_DATA", "/data")
+DATA_DIR = os.environ.get("FEIYING_DATA", "/data")
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 
