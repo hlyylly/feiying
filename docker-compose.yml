@@ -1,0 +1,16 @@
+services:
+  tgflix:
+    build: .
+    image: tgflix:latest
+    container_name: tgflix
+    restart: unless-stopped
+    user: "1000:1001"        # ← 你媒体服务器用户的 uid:gid(飞牛 admin 一般 1000:1001;`id 用户名` 查)
+    ports:
+      - "8080:8080"          # Web 配置/状态页
+      - "8890:8890"          # 缓存流服务(媒体库 .strm 指向这里)
+    volumes:
+      - ./data:/data                        # config/session/缓存(想放大盘就把它指到大盘目录)
+      - /path/to/your/tv:/media/tv          # ← 改成你的剧集库目录
+      - /path/to/your/movies:/media/movies  # ← 改成你的电影库目录
+    # 若媒体服务器访问 8890 有跨网/回流问题,可改用 host 网络(注释掉上面 ports):
+    # network_mode: host

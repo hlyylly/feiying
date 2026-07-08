@@ -1,0 +1,8 @@
+telethon==1.44.0
+cryptg==0.6.0
+python-socks[asyncio]
+fastapi
+uvicorn[standard]
+httpx
+python-multipart
+jinja2

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TGFlix — TG 影视自动入库</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --fg:#e6e8ee; --mut:#8b93a7; --ok:#3fb950; --bad:#f85149; --acc:#58a6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.6 -apple-system,system-ui,"PingFang SC",sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; } .sub { color:var(--mut); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin:0 0 16px; }
+  .card h2 { font-size:15px; margin:0 0 14px; display:flex; align-items:center; gap:8px; }
+  label { display:block; color:var(--mut); font-size:12px; margin:10px 0 4px; }
+  input, textarea { width:100%; background:#0f1218; border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:9px 11px; font:inherit; }
+  textarea { resize:vertical; min-height:52px; }
+  .row { display:flex; gap:12px; } .row > div { flex:1; }
+  button { background:var(--acc); color:#04122b; border:0; border-radius:8px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  button.sec { background:#232833; color:var(--fg); }
+  .pill { font-size:12px; padding:2px 9px; border-radius:20px; }
+  .pill.ok { background:rgba(63,185,80,.15); color:var(--ok); } .pill.bad { background:rgba(248,81,73,.15); color:var(--bad); }
+  .st { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+  .muted { color:var(--mut); font-size:12px; }
+  .msg { font-size:13px; margin-top:8px; min-height:18px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td { padding:5px 4px; border-top:1px solid var(--line); }
+  .hint { color:var(--mut); font-size:11px; margin-top:2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 TGFlix</h1>
+  <p class="sub">发个片名 → 自动入库到飞牛。TG 直传视频 · 缓存流播 · AI 智能匹配</p>
+
+  <div class="card">
+    <h2>状态</h2>
+    <div class="st">
+      <span class="pill {{ 'ok' if st.logged_in else 'bad' }}">{{ 'TG已登录 '+st.phone if st.logged_in else 'TG未登录' }}</span>
+      <span class="pill {{ 'ok' if st.proxy_running else 'bad' }}">{{ '代理运行中' if st.proxy_running else '代理未运行' }}</span>
+      <span class="pill {{ 'ok' if st.source else 'bad' }}">{{ '种子群已配' if st.source else '未配种子群' }}</span>
+      <span class="pill ok">缓存 {{ st.cache_gb }}/{{ st.quota_gb }} GB</span>
+    </div>
+    <div class="muted">流服务地址(飞牛媒体库.strm指向): {{ st.stream_base or '未设置,请在下方填 stream_base' }}</div>
+  </div>
+
+  {% if not st.logged_in %}
+  <div class="card">
+    <h2>① 登录 Telegram</h2>
+    <div class="muted">先在下方保存好 vmess(代理),再登录。验证码会发到你手机 Telegram App。</div>
+    <label>手机号(带国家码,如 +8613800000000)</label>
+    <div class="row"><div><input id="phone" placeholder="+86..."></div><div style="flex:0 0 120px"><button class="sec" onclick="sendCode()">发送验证码</button></div></div>
+    <label>验证码</label>
+    <div class="row"><div><input id="code" placeholder="收到的数字"></div>
+      <div><input id="pwd" placeholder="两步验证密码(没有留空)"></div>
+      <div style="flex:0 0 90px"><button onclick="verify()">登录</button></div></div>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+  {% endif %}
+
+  {% if st.logged_in %}
+  <div class="card">
+    <h2>发片名入库 <span class="muted">(等同在 TG 收藏夹发消息)</span></h2>
+    <div class="row"><div><input id="film" placeholder="炽夏 / 诺兰讲原子弹那部…"></div>
+      <div style="flex:0 0 90px"><button onclick="ingest()">入库</button></div></div>
+    <div class="msg" id="ingestMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>追更中 <span class="muted">(每 {{ st.update_interval_hours }}h 自动查新集,有更新发到收藏夹)</span>
+      <button class="sec" style="margin-left:auto;padding:4px 12px" onclick="checkNow()">立即检查</button></h2>
+    {% if st.follows %}
+    <table><tbody>
+    {% for f in st.follows %}
+      <tr><td>{{ f.show }}</td>
+      <td class="muted">{% if f.last_count %}上次+{{ f.last_count }}集{% endif %}</td>
+      <td style="text-align:right"><a href="#" onclick="unfollow('{{ f.show }}');return false" style="color:var(--bad)">取消</a></td></tr>
+    {% endfor %}
+    </tbody></table>
+    {% else %}<div class="muted">还没有追更的剧。入库任意剧集会自动加入追更。</div>{% endif %}
+    <div class="msg" id="followMsg"></div>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/save" class="card">
+    <h2>② 配置</h2>
+    <label>种子群 / 频道(资源源,多个逗号分隔;@jisou 这类搜索bot也行)</label>
+    <input name="source" value="{{ cfg.source }}" placeholder="AE9527x, @jisou">
+    <label>vmess:// 或 vless:// 代理链接</label>
+    <textarea name="vmess" placeholder="vmess://...">{{ cfg.vmess }}</textarea>
+    <div class="row">
+      <div><label>deepseek API key</label><input name="deepseek_key" value="{{ cfg.deepseek_key }}" placeholder="sk-...">
+        <div class="hint">留空则用正则兜底,不做 AI 匹配</div></div>
+      <div><label>deepseek 模型</label><input name="deepseek_model" value="{{ cfg.deepseek_model }}"></div>
+    </div>
+    <div class="row">
+      <div><label>剧集目录(容器内)</label><input name="media_dir" value="{{ cfg.media_dir }}"></div>
+      <div><label>电影目录(容器内)</label><input name="movie_dir" value="{{ cfg.movie_dir }}"></div>
+    </div>
+    <label>stream_base(飞牛访问缓存流服务的地址)</label>
+    <input name="stream_base" value="{{ cfg.stream_base }}" placeholder="http://192.168.3.8:8890">
+    <div class="hint">必须填你飞牛的局域网 IP + 流端口,否则 .strm 指不到本机</div>
+    <div class="row">
+      <div><label>缓存配额 GB</label><input name="cache_quota_gb" type="number" value="{{ cfg.cache_quota_gb }}"></div>
+      <div><label>预取并发(≤5,别调高)</label><input name="prefetch_workers" type="number" value="{{ cfg.prefetch_workers }}"></div>
+      <div><label>下载并发上限</label><input name="dl_sem" type="number" value="{{ cfg.dl_sem }}"></div>
+      <div><label>流端口</label><input name="stream_port" type="number" value="{{ cfg.stream_port }}"></div>
+    </div>
+    <input type="hidden" name="deepseek_base" value="{{ cfg.deepseek_base }}">
+    <input type="hidden" name="api_id" value="{{ cfg.api_id }}">
+    <input type="hidden" name="api_hash" value="{{ cfg.api_hash }}">
+    <div style="margin-top:16px"><button type="submit">保存配置</button></div>
+  </form>
+
+  {% if st.ingests %}
+  <div class="card">
+    <h2>最近入库</h2>
+    <table><tbody>
+    {% for r in st.ingests %}
+      <tr><td>{{ r.show }}</td><td class="muted">{{ r.name }}</td>
+      <td>{% if r.status=='done' %}<span class="pill ok">{{ r.count }}集</span>{% else %}<span class="pill bad">{{ r.status }}</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody></table>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+async function post(url, data){ const f=new FormData(); for(const k in data) f.append(k,data[k]);
+  const r=await fetch(url,{method:'POST',body:f}); return r.json(); }
+async function sendCode(){ const m=document.getElementById('loginMsg'); m.textContent='发送中…';
+  const r=await post('/login/send',{phone:document.getElementById('phone').value}); m.textContent=r.msg; }
+async function verify(){ const m=document.getElementById('loginMsg'); m.textContent='登录中…';
+  const r=await post('/login/verify',{code:document.getElementById('code').value,password:document.getElementById('pwd').value});
+  m.textContent=r.msg; if(r.ok) setTimeout(()=>location.reload(),1200); }
+async function ingest(){ const m=document.getElementById('ingestMsg'); m.textContent='处理中…(搜索+AI匹配需十几秒)';
+  const r=await post('/ingest',{name:document.getElementById('film').value});
+  m.textContent=(r.ok?'✅ ':'❌ ')+(r.status==='done'?('《'+r.show+'》已入库 '+r.count+' 集'):(r.msg||r.status));
+  if(r.ok) setTimeout(()=>location.reload(),1500); }
+async function unfollow(show){ await post('/unfollow',{show}); location.reload(); }
+async function checkNow(){ const m=document.getElementById('followMsg'); m.textContent='触发中…';
+  const r=await post('/check_now',{}); m.textContent=r.msg||''; }
+</script>
+</body>
+</html>
