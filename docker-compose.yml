@@ -1,7 +1,7 @@
 services:
   feiying:
-    build: .
-    image: feiying:latest
+    image: mn4940128/feiying:latest    # 直接拉官方镜像;想从源码构建就注释掉本行、取消下一行注释
+    # build: .
     container_name: feiying
     restart: unless-stopped
     user: "1000:1001"        # ← 你媒体服务器用户的 uid:gid(飞牛 admin 一般 1000:1001;`id 用户名` 查)

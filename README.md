@@ -21,11 +21,12 @@
 5. **两个媒体文件夹**（剧集库 + 电影库，挂进容器，媒体服务器指向它们）
 
 ## 部署
+镜像已发布在 Docker Hub（`mn4940128/feiying`，amd64），连源码都不用 clone，写个 compose 就能跑：
 ```yaml
 # docker-compose.yml
 services:
   feiying:
-    image: YOURNAME/feiying:latest      # ← 换成实际的 Docker Hub 镜像名
+    image: mn4940128/feiying:latest    # 官方镜像,docker compose 直接拉
     container_name: feiying
     restart: unless-stopped
     user: "1000:1001"                  # ← 你媒体服务器用户的 uid:gid(飞牛 admin 一般是1000:1001,`id 用户名` 查)
