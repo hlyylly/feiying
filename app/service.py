@@ -6,15 +6,20 @@ from . import state, proxy as proxymod, tg, cache_server, control, watchdog, upd
 _flags = {"watchdog": False, "updater": False}
 
 
+def _use_xray():
+    """外部代理(proxy_url)或直连模式都不起内置 xray。"""
+    return bool(state.cfg.vmess and not state.cfg.proxy_url)
+
+
 async def start_proxy():
     if state.proxy:
         state.proxy.stop()
-    state.proxy = proxymod.XrayProxy(state.cfg.vmess)
+    state.proxy = proxymod.XrayProxy(state.cfg.vmess if _use_xray() else "")
     state.proxy.start()
 
 
 async def connect_client():
-    if state.cfg.vmess and not (state.proxy and state.proxy.is_running()):
+    if _use_xray() and not (state.proxy and state.proxy.is_running()):
         await start_proxy()
     await tg.connect()
 
@@ -38,9 +43,9 @@ async def _start_watchdog():
 
 async def boot():
     """进程启动时调用。"""
-    if state.cfg.vmess:
+    if _use_xray():
         await start_proxy()
-    if state.cfg.session and state.cfg.vmess:
+    if state.cfg.session:
         try:
             await connect_client()
             if await tg.is_authorized():
@@ -81,6 +86,8 @@ def status():
         "logged_in": bool(state.cfg.session),
         "phone": state.cfg.phone,
         "proxy_running": bool(state.proxy and state.proxy.is_running()),
+        "proxy_mode": ("external" if state.cfg.proxy_url
+                       else "xray" if state.cfg.vmess else "direct"),
         "vmess_set": bool(state.cfg.vmess),
         "source": state.cfg.source,
         "media_dir": state.cfg.media_dir,

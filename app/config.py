@@ -13,6 +13,7 @@ DEFAULTS = {
     "session": "",            # telethon StringSession,登录后写入
     "source": "",             # 种子群/频道 username,多个用逗号分隔
     "vmess": "",              # vmess:// 或 vless:// 分享链接
+    "proxy_url": "",          # 外部代理 socks5://host:port 或 http://host:port,填了则不起内置 xray;和 vmess 都留空=直连
     "deepseek_key": "",
     "deepseek_base": "https://api.deepseek.com",
     "deepseek_model": "deepseek-chat",

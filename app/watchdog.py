@@ -10,7 +10,8 @@ async def loop():
     while True:
         await asyncio.sleep(INTERVAL)
         try:
-            if state.proxy and state.cfg.vmess and not state.proxy.is_running():
+            if state.proxy and state.cfg.vmess and not state.cfg.proxy_url \
+                    and not state.proxy.is_running():
                 print("[watchdog] xray 挂了,重启", flush=True)
                 state.proxy.restart()
             ok = False

@@ -19,7 +19,8 @@ def create_app():
 
     @app.post("/save")
     async def save(
-        source: str = Form(""), vmess: str = Form(""), deepseek_key: str = Form(""),
+        source: str = Form(""), vmess: str = Form(""), proxy_url: str = Form(""),
+        deepseek_key: str = Form(""),
         deepseek_base: str = Form("https://api.deepseek.com"),
         deepseek_model: str = Form("deepseek-chat"),
         media_dir: str = Form("/media/tv"), movie_dir: str = Form("/media/movies"),
@@ -28,7 +29,8 @@ def create_app():
         prefetch_workers: int = Form(4), dl_sem: int = Form(5),
         api_id: int = Form(DEFAULTS["api_id"]), api_hash: str = Form(DEFAULTS["api_hash"]),
     ):
-        kw = dict(source=source, vmess=vmess, deepseek_base=deepseek_base,
+        kw = dict(source=source, vmess=vmess, proxy_url=proxy_url.strip(),
+                  deepseek_base=deepseek_base,
                   deepseek_model=deepseek_model, media_dir=media_dir, movie_dir=movie_dir,
                   stream_base=stream_base,
                   stream_port=stream_port, cache_quota_gb=cache_quota_gb,

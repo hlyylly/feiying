@@ -8,7 +8,7 @@ from . import state, proxy as proxymod
 def make_client(cfg):
     return TelegramClient(
         StringSession(cfg.session or None), cfg.api_id, cfg.api_hash,
-        proxy=("socks5", "127.0.0.1", proxymod.SOCKS_PORT))
+        proxy=proxymod.telethon_proxy(cfg))
 
 
 async def connect():

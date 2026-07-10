@@ -37,7 +37,9 @@
     <h2>状态</h2>
     <div class="st">
       <span class="pill {{ 'ok' if st.logged_in else 'bad' }}">{{ 'TG已登录 '+st.phone if st.logged_in else 'TG未登录' }}</span>
-      <span class="pill {{ 'ok' if st.proxy_running else 'bad' }}">{{ '代理运行中' if st.proxy_running else '代理未运行' }}</span>
+      {% if st.proxy_mode == 'external' %}<span class="pill ok">外部代理</span>
+      {% elif st.proxy_mode == 'direct' %}<span class="pill ok">直连模式</span>
+      {% else %}<span class="pill {{ 'ok' if st.proxy_running else 'bad' }}">{{ '代理运行中' if st.proxy_running else '代理未运行' }}</span>{% endif %}
       <span class="pill {{ 'ok' if st.source else 'bad' }}">{{ '种子群已配' if st.source else '未配种子群' }}</span>
       <span class="pill ok">缓存 {{ st.cache_gb }}/{{ st.quota_gb }} GB</span>
     </div>
@@ -47,7 +49,7 @@
   {% if not st.logged_in %}
   <div class="card">
     <h2>① 登录 Telegram</h2>
-    <div class="muted">先在下方保存好 vmess(代理),再登录。验证码会发到你手机 Telegram App。</div>
+    <div class="muted">先在下方配置好联网方式(vmess/外部代理,能直连 TG 则都不用填)并保存,再登录。验证码会发到你手机 Telegram App。</div>
     <label>手机号(带国家码,如 +8613800000000)</label>
     <div class="row"><div><input id="phone" placeholder="+86..."></div><div style="flex:0 0 120px"><button class="sec" onclick="sendCode()">发送验证码</button></div></div>
     <label>验证码</label>
@@ -88,6 +90,9 @@
     <input name="source" value="{{ cfg.source }}" placeholder="AE9527x, @jisou">
     <label>vmess:// 或 vless:// 代理链接</label>
     <textarea name="vmess" placeholder="vmess://...">{{ cfg.vmess }}</textarea>
+    <label>外部代理地址(可选)</label>
+    <input name="proxy_url" value="{{ cfg.proxy_url }}" placeholder="socks5://192.168.1.1:1080 或 http://ip:port">
+    <div class="hint">三种联网方式任选:填 vmess 链接=内置 xray;填外部代理=用现成的常驻代理(优先于 vmess);都留空=直连(适合旁路由/透明代理/海外网络)</div>
     <div class="row">
       <div><label>deepseek API key</label><input name="deepseek_key" value="{{ cfg.deepseek_key }}" placeholder="sk-...">
         <div class="hint">留空则用正则兜底,不做 AI 匹配</div></div>

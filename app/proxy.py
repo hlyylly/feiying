@@ -32,6 +32,27 @@ def _stream_settings(net, tls, host, path, sni, htype):
     return ss
 
 
+def parse_proxy_url(url):
+    """外部代理地址 → telethon proxy 元组。支持 socks5://[user:pass@]host:port 和 http://。"""
+    u = urllib.parse.urlparse(url.strip())
+    scheme = {"socks5": "socks5", "socks": "socks5", "http": "http", "https": "http"}.get(u.scheme)
+    if not scheme or not u.hostname:
+        raise ValueError("代理地址格式应为 socks5://host:port 或 http://host:port: " + url[:40])
+    t = (scheme, u.hostname, u.port or (1080 if scheme == "socks5" else 8080))
+    if u.username:
+        t += (True, u.username, u.password or "")
+    return t
+
+
+def telethon_proxy(cfg):
+    """按配置决定 telethon 代理:外部代理 > 内置 xray > 直连(None)。"""
+    if cfg.proxy_url:
+        return parse_proxy_url(cfg.proxy_url)
+    if cfg.vmess:
+        return ("socks5", "127.0.0.1", SOCKS_PORT)
+    return None
+
+
 def parse_link(link):
     """返回一个 xray outbound dict。支持 vmess:// 和 vless://。"""
     link = link.strip()
