@@ -106,7 +106,19 @@
       <div><label>下载并发上限</label><input name="dl_sem" type="number" value="{{ cfg.dl_sem }}"></div>
       <div><label>流端口</label><input name="stream_port" type="number" value="{{ cfg.stream_port }}"></div>
     </div>
-    <input type="hidden" name="deepseek_base" value="{{ cfg.deepseek_base }}">
+    <label>AI 接口地址 base_url(OpenAI 兼容端点)</label>
+    <input name="deepseek_base" value="{{ cfg.deepseek_base }}" list="ai_base_presets" placeholder="https://api.deepseek.com/v1">
+    <datalist id="ai_base_presets">
+      <option value="https://api.deepseek.com/v1">deepseek 官方</option>
+      <option value="https://api.openai.com/v1">OpenAI</option>
+      <option value="https://dashscope.aliyuncs.com/compatible-mode/v1">通义千问(阿里)</option>
+      <option value="https://open.bigmodel.cn/api/paas/v4">智谱 GLM</option>
+      <option value="https://api.moonshot.cn/v1">Kimi(Moonshot)</option>
+      <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+      <option value="https://api.siliconflow.cn/v1">硅基流动</option>
+      <option value="http://127.0.0.1:11434/v1">本地 Ollama</option>
+    </datalist>
+    <div class="hint">换服务只需改「地址 + key + 模型名」三项。deepseek 官方模型为 deepseek-chat / deepseek-reasoner</div>
     <input type="hidden" name="api_id" value="{{ cfg.api_id }}">
     <input type="hidden" name="api_hash" value="{{ cfg.api_hash }}">
     <div style="margin-top:16px"><button type="submit">保存配置</button></div>

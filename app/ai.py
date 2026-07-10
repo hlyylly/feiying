@@ -8,13 +8,21 @@ async def _chat(messages, json_mode=True, timeout=45):
     cfg = state.cfg
     if not cfg.deepseek_key:
         return None
+    base = (cfg.deepseek_base or "https://api.deepseek.com/v1").rstrip("/")
     payload = {"model": cfg.deepseek_model, "messages": messages, "temperature": 0}
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient(timeout=timeout) as h:
-        r = await h.post(cfg.deepseek_base.rstrip("/") + "/chat/completions",
+        r = await h.post(base + "/chat/completions",
                          headers={"Authorization": "Bearer " + cfg.deepseek_key},
                          json=payload)
+        # 部分 OpenAI 兼容服务(某些本地/Ollama 模型)不支持 response_format=json_object,
+        # 报 4xx 时去掉它重试一次,最大化多接口兼容性(deepseek/OpenAI 正常路径不受影响)。
+        if r.status_code >= 400 and json_mode:
+            payload.pop("response_format", None)
+            r = await h.post(base + "/chat/completions",
+                             headers={"Authorization": "Bearer " + cfg.deepseek_key},
+                             json=payload)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
 
@@ -167,8 +175,15 @@ async def pick_deeplink(film, items):
                 "year": data.get("year"), "season": data.get("season", 1),
                 "version": data.get("version"), "picks": picks}
     except Exception as e:
-        print("[ai] pick_deeplink 失败:", repr(e), flush=True)
-        return None
+        print("[ai] pick_deeplink 失败,正则兜底:", repr(e), flush=True)
+        core = re.sub(r"[\s\d季集第部]", "", film)
+        picks = []
+        for it in lst:
+            t = it["title"]
+            if (all(ch in t for ch in core[:2]) if core else False):
+                ep = _parse_ep(t) or (len(picks) + 1)
+                picks.append({"i": it["i"], "ep": ep})
+        return {"type": "series", "title": film, "picks": picks} if picks else None
 
 
 def _series_fallback(film, candidates):
