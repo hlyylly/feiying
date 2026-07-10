@@ -3,3 +3,5 @@ data/
 __pycache__/
 *.pyc
 .DS_Store
+DOCKERHUB.md
+飞牛论坛发帖.md
