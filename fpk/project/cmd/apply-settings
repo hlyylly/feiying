@@ -1,0 +1,76 @@
+#!/bin/bash
+# 把向导变量(wizard_*)套用到 docker-compose.yaml,并持久化到 PKGVAR 供升级时重放。
+# 被 install_callback / upgrade_callback source 使用。
+
+COMPOSE="${TRIM_APPDEST}/docker/docker-compose.yaml"
+SETTINGS="${TRIM_PKGVAR}/.fpk_settings"
+
+# fnOS 把向导变量写进 INST_VARIABLES 指向的文件(key=value);读进来
+if [ -n "${INST_VARIABLES}" ] && [ -r "${INST_VARIABLES}" ]; then
+    . "${INST_VARIABLES}"
+fi
+
+save_setting() {  # save_setting key value
+    [ -f "$SETTINGS" ] || : > "$SETTINGS"
+    grep -v "^$1=" "$SETTINGS" > "$SETTINGS.tmp" 2>/dev/null || true
+    echo "$1=$2" >> "$SETTINGS.tmp"
+    mv "$SETTINGS.tmp" "$SETTINGS"
+}
+
+apply_tv_dir() {
+    [ -z "$1" ] && return
+    mkdir -p "$1" 2>/dev/null || true
+    sed -i "s|^      - .*:/media/tv\$|      - $1:/media/tv|" "$COMPOSE"
+    save_setting tv_dir "$1"
+}
+
+apply_movie_dir() {
+    [ -z "$1" ] && return
+    mkdir -p "$1" 2>/dev/null || true
+    sed -i "s|^      - .*:/media/movies\$|      - $1:/media/movies|" "$COMPOSE"
+    save_setting movie_dir "$1"
+}
+
+apply_uid_gid() {
+    [ -z "$1" ] && return
+    echo "$1" | grep -qE '^[0-9]+:[0-9]+$' || return
+    sed -i "s|^    user: .*|    user: \"$1\"|" "$COMPOSE"
+    # chown 需要 root(回调可能以包用户跑),chmod 由目录属主即可执行
+    chown -R "$1" "${TRIM_PKGVAR}/data" "${TRIM_PKGVAR}/media" 2>/dev/null || true
+    chmod -R 0777 "${TRIM_PKGVAR}/data" "${TRIM_PKGVAR}/media" 2>/dev/null || true
+    save_setting uid_gid "$1"
+}
+
+apply_web_port() {
+    [ -z "$1" ] && return
+    echo "$1" | grep -qE '^[0-9]+$' || return
+    sed -i "s|\"[0-9]*:8080\"|\"$1:8080\"|" "$COMPOSE"
+    # 桌面图标入口端口同步改掉
+    sed -i "s|\"port\": \"[0-9]*\"|\"port\": \"$1\"|" "${TRIM_APPDEST}/ui/config" 2>/dev/null || true
+    save_setting web_port "$1"
+}
+
+apply_stream_port() {
+    [ -z "$1" ] && return
+    echo "$1" | grep -qE '^[0-9]+$' || return
+    sed -i "s|\"[0-9]*:8890\"|\"$1:8890\"|" "$COMPOSE"
+    save_setting stream_port "$1"
+}
+
+apply_wizard_vars() {
+    apply_tv_dir "${wizard_tv_dir}"
+    apply_movie_dir "${wizard_movie_dir}"
+    apply_uid_gid "${wizard_uid_gid}"
+    apply_web_port "${wizard_web_port}"
+    apply_stream_port "${wizard_stream_port}"
+}
+
+replay_saved_settings() {
+    [ -r "$SETTINGS" ] || return 0
+    . "$SETTINGS"
+    apply_tv_dir "${tv_dir}"
+    apply_movie_dir "${movie_dir}"
+    apply_uid_gid "${uid_gid}"
+    apply_web_port "${web_port}"
+    apply_stream_port "${stream_port}"
+}

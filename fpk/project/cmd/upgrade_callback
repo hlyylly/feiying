@@ -1,0 +1,9 @@
+#!/bin/bash
+### 升级完成后调用:app 目录被替换,重放上次保存的目录/端口/uid 设置。
+
+. "$(dirname "$0")/apply-settings"
+
+mkdir -p "${TRIM_PKGVAR}/data" "${TRIM_PKGVAR}/media/tv" "${TRIM_PKGVAR}/media/movies"
+replay_saved_settings
+
+exit 0

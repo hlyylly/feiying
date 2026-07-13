@@ -1,0 +1,43 @@
+[
+    {
+        "stepTitle": "飞影 · 媒体目录与运行设置",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "飞影会把搜到的片源生成 .strm 写入下面两个目录，飞牛影视/Emby 的媒体库请指向它们。<br>请填 NAS 上的<b>绝对路径</b>（如 <code>/vol1/1000/media/tv</code>）。留空则用应用内部目录（不推荐，媒体库不易访问）。"
+            },
+            {
+                "type": "text",
+                "field": "wizard_tv_dir",
+                "label": "剧集库目录"
+            },
+            {
+                "type": "text",
+                "field": "wizard_movie_dir",
+                "label": "电影库目录"
+            },
+            {
+                "type": "text",
+                "field": "wizard_uid_gid",
+                "label": "媒体用户 uid:gid（默认 1000:1001，SSH 里用 id 你的用户名 查）",
+                "initValue": "1000:1001"
+            },
+            {
+                "type": "text",
+                "field": "wizard_web_port",
+                "label": "Web 配置页端口（默认 8080，被占用才需要改）",
+                "initValue": "8080"
+            },
+            {
+                "type": "text",
+                "field": "wizard_stream_port",
+                "label": "缓存流端口（默认 8890，媒体库 .strm 指向它，被占用才需要改）",
+                "initValue": "8890"
+            },
+            {
+                "type": "tips",
+                "helpText": "安装后打开桌面「飞影」图标：①填 vmess/vless 或外部代理（能直连 TG 可跳过）②登录 Telegram ③填资源 bot 和 AI key。<br>⚠️ 资源源务必用<b>机器人 bot</b>，不要用公开群组，避免账号被 TG 反垃圾误伤。"
+            }
+        ]
+    }
+]

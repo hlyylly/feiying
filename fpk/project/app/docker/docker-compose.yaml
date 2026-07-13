@@ -1,0 +1,15 @@
+services:
+  feiying:
+    image: ${DOCKER_MIRROR}docker.io/mn4940128/feiying:latest
+    container_name: feiying-app
+    user: "1000:1001"
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8890:8890"
+    volumes:
+      - ${TRIM_PKGVAR:?}/data:/data
+      - ${TRIM_PKGVAR:?}/media/tv:/media/tv
+      - ${TRIM_PKGVAR:?}/media/movies:/media/movies
+    environment:
+      - TZ=Asia/Shanghai

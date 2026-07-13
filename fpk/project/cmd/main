@@ -1,0 +1,28 @@
+#!/bin/bash
+# 飞影 Docker 应用:compose 生命周期由 fnOS docker-project 托管,
+# main 只负责 status 探测(start/stop 交给 fnOS)。
+
+CONTAINER="feiying-app"
+
+case $1 in
+start)
+    exit 0
+    ;;
+stop)
+    exit 0
+    ;;
+status)
+    if docker inspect -f '{{.State.Status}}' "$CONTAINER" 2>/dev/null | grep -q '^running$'; then
+        exit 0
+    else
+        exit 3
+    fi
+    ;;
+log)
+    docker logs --tail "${2:-100}" "$CONTAINER" 2>&1
+    exit 0
+    ;;
+*)
+    exit 1
+    ;;
+esac

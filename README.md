@@ -23,6 +23,12 @@
 5. **两个媒体文件夹**（剧集库 + 电影库，挂进容器，媒体服务器指向它们）
 
 ## 部署
+
+### 方式一：飞牛 fnOS 一键安装（不会 Docker 选这个）
+从 [Releases](https://github.com/hlyylly/feiying/releases) 下载 `feiying_x.y.z_x86_64.fpk`，飞牛应用中心 → 手动安装 → 选择文件，向导里填好剧集/电影目录即可，装完点桌面「飞影」图标进配置页。详见 [fpk/README.md](fpk/README.md)。
+> 注意：fpk 和下面的手动 Docker 部署**二选一**，不要混用（compose 项目同名，卸载会互相影响）。
+
+### 方式二：Docker Compose
 镜像已发布在 Docker Hub（[`mn4940128/feiying`](https://hub.docker.com/r/mn4940128/feiying)，amd64），连源码都不用 clone，写个 compose 就能跑：
 ```yaml
 # docker-compose.yml

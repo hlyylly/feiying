@@ -1,0 +1,12 @@
+#!/bin/bash
+### 安装完成后调用:准备数据目录 + 套用向导设置。
+
+. "$(dirname "$0")/apply-settings"
+
+mkdir -p "${TRIM_PKGVAR}/data" "${TRIM_PKGVAR}/media/tv" "${TRIM_PKGVAR}/media/movies"
+apply_wizard_vars
+
+# 回调可能以包用户身份运行(chown 会失败),用 chmod 保证容器内任意 uid 都能读写
+chmod -R 0777 "${TRIM_PKGVAR}/data" "${TRIM_PKGVAR}/media" 2>/dev/null || true
+
+exit 0

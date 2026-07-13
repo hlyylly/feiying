@@ -1,0 +1,16 @@
+{
+    "port-config":
+    {
+        "protocol-file": "feiying.sc"
+    },
+    "docker-project":
+    {
+        "projects":
+        [
+            {
+                "name": "feiying",
+                "path": "docker"
+            }
+        ]
+    }
+}
