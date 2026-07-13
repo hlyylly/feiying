@@ -1,0 +1,5 @@
+# fpk 内的脚本/配置必须保持 LF,CRLF 会导致 fnOS 上无法执行
+fpk/** text eol=lf
+fpk/**/*.PNG binary
+fpk/**/*.png binary
+*.sh text eol=lf
