@@ -34,8 +34,10 @@ chaquopy {
             // CI 在构建前把仓库根的 app/ 拷进 src/main/python/,核心零改动复用
             install "telethon==1.44.0"
             install "pyaes"                 // 无 cryptg 时 telethon 的纯 python 兜底
-            install "fastapi"
-            install "uvicorn"
+            // pydantic v2 的 core 是 Rust,安卓无 wheel;退回纯 python 的 v1 + 配套 fastapi
+            install "pydantic==1.10.19"
+            install "fastapi==0.95.2"
+            install "uvicorn==0.23.2"
             install "httpx"
             install "python-multipart"
             install "jinja2"
