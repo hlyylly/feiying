@@ -7,11 +7,24 @@ import traceback
 WEB_PORT = 27125          # 冷门端口:8080 在部分手机上被其它应用占用(还带 HTTP 认证)
 
 
+def _patch_telethon_aes(native_lib_dir):
+    """安卓没有 cryptg,telethon 会退到极慢的纯 python AES(下载几百KB/s封顶)。
+    Chaquopy 自带的 libcrypto 导出了 AES_ige_encrypt 全套函数,把 find_library('ssl')
+    指过去,telethon 的 libssl 加速后端即被激活(需在 import telethon 之前打)。"""
+    import ctypes.util
+    libcrypto = os.path.join(native_lib_dir, "libcrypto_chaquopy.so")
+    if not os.path.exists(libcrypto):
+        return
+    orig = ctypes.util.find_library
+    ctypes.util.find_library = lambda name: libcrypto if name == "ssl" else orig(name)
+
+
 def start(files_dir, native_lib_dir, player_bridge):
     os.environ.setdefault("FEIYING_DATA", os.path.join(files_dir, "feiying"))
     xray = os.path.join(native_lib_dir, "libxray.so")
     if os.path.exists(xray):
         os.environ.setdefault("XRAY_BIN", xray)
+    _patch_telethon_aes(native_lib_dir)
 
     log_dir = os.environ["FEIYING_DATA"]
     os.makedirs(log_dir, exist_ok=True)
@@ -30,6 +43,9 @@ def start(files_dir, native_lib_dir, player_bridge):
             state.cfg.set(media_dir=os.path.join(config.DATA_DIR, "media", "tv"),
                           movie_dir=os.path.join(config.DATA_DIR, "media", "movies"))
         print("[android] 数据目录:", config.DATA_DIR, flush=True)
+        from telethon.crypto import aes as _aes
+        print("[android] AES 加速:", "libssl ✓" if (_aes.libssl.encrypt_ige and not _aes.cryptg)
+              else ("cryptg ✓" if _aes.cryptg else "纯python(慢)"), flush=True)
 
         async def amain():
             await service.boot()
