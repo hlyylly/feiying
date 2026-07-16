@@ -33,6 +33,19 @@ def _prep_env():
 
 _prep_env()
 
+
+def _setup_log():
+    """打包后是 GUI 子系统,stdout 无处可去;全部落盘到数据目录 desktop.log。"""
+    if not getattr(sys, "frozen", False):
+        return
+    os.makedirs(os.environ["FEIYING_DATA"], exist_ok=True)
+    f = open(os.path.join(os.environ["FEIYING_DATA"], "desktop.log"),
+             "a", buffering=1, encoding="utf-8", errors="replace")
+    sys.stdout = sys.stderr = f
+
+
+_setup_log()
+
 WEB_PORT = int(os.environ.get("FEIYING_WEB_PORT", "0")) or None
 
 
@@ -64,7 +77,12 @@ def _run_core(port):
                                log_level="warning", loop="asyncio")
         await uvicorn.Server(uconf).serve()
 
-    asyncio.run(amain())
+    try:
+        asyncio.run(amain())
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 def _wait_web(port, timeout=30):
