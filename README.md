@@ -1,10 +1,18 @@
-# 飞影 feiying — 发个片名，自动入库到飞牛/Emby
+# 飞影 feiying — 发个片名，自动入库秒播
 
 [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-mn4940128%2Ffeiying-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/mn4940128/feiying)
+[![Release](https://img.shields.io/github/v/release/hlyylly/feiying?label=Release&color=3fb950)](https://github.com/hlyylly/feiying/releases)
 
-打开 **Web 页面输入一个片名**（电影或剧名，甚至"诺兰讲原子弹那部"这种模糊描述），飞影 就自动帮你搜到、生成 `.strm`、进媒体库，**点开秒播、边看边缓存、剧集自动追更**。（也支持在 Telegram 收藏夹发片名，效果一样。）
+**输入一个片名**（电影或剧名，甚至"诺兰讲原子弹那部"这种模糊描述），飞影自动帮你从 Telegram 搜到、入库，**点开秒播、边看边缓存、断点续缓、剧集自动追更**。
 
-把「TG 资源发现 → 智能匹配 → 缓存流播 → 飞牛/Emby 入库」全流程做成了一个自托管的小软件，一个 Docker 容器搞定。
+一套核心，四种形态，覆盖 NAS 和随身设备：
+
+| 平台 | 形态 | 播放 |
+|---|---|---|
+| 飞牛 fnOS | 应用中心 fpk 一键安装 | 飞牛影视 / Emby |
+| 任意 NAS/服务器 | Docker Compose | 飞牛影视 / Emby / Jellyfin |
+| **Windows** | 免安装 exe（[Releases](https://github.com/hlyylly/feiying/releases) 下载 zip） | 内置 mpv 播放器 |
+| **Android** | APK 直装（[Releases](https://github.com/hlyylly/feiying/releases) 下载） | 内置 ExoPlayer，可转外部播放器 |
 
 ## 能干什么
 - 🔎 **多种资源源**：TG 频道直传视频 / 搜索 bot（如极搜）/ 深链令牌 bot（如 Youxiu_bot，自动翻页收全集）/ 多源兜底
@@ -28,7 +36,13 @@
 从 [Releases](https://github.com/hlyylly/feiying/releases) 下载 `feiying_x.y.z_x86_64.fpk`，飞牛应用中心 → 手动安装 → 选择文件，向导里填好剧集/电影目录即可，装完点桌面「飞影」图标进配置页。详见 [fpk/README.md](fpk/README.md)。
 > 注意：fpk 和下面的手动 Docker 部署**二选一**，不要混用（compose 项目同名，卸载会互相影响）。
 
-### 方式二：Docker Compose
+### 方式二：Windows 桌面版（不用 NAS）
+从 [Releases](https://github.com/hlyylly/feiying/releases) 下载 `feiying-desktop_x.y.z_win64.zip`，解压双击 `feiying.exe`——窗口里配置，媒体库点集数即用内置 mpv 播放，数据在 `%APPDATA%\feiying`。详见 [desktop/README.md](desktop/README.md)。
+
+### 方式三：Android 版
+从 [Releases](https://github.com/hlyylly/feiying/releases) 下载 `feiying-android_x.y.z_arm64.apk` 直接安装（允许未知来源）。手机开着翻墙 App 就不用配代理，内置 ExoPlayer 播放器拖动丝滑，格式不支持可一键转外部播放器（mpv-android/VLC）。国产 ROM 记得给「无限制后台」权限。详见 [android/README.md](android/README.md)。
+
+### 方式四：Docker Compose
 镜像已发布在 Docker Hub（[`mn4940128/feiying`](https://hub.docker.com/r/mn4940128/feiying)，amd64），连源码都不用 clone，写个 compose 就能跑：
 ```yaml
 # docker-compose.yml
