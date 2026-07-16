@@ -1,0 +1,82 @@
+name: build-desktop
+
+# 云端构建 Windows 桌面版并挂到 Release:
+# - push v* tag 自动触发,或手动 workflow_dispatch 指定已有 tag
+# - 本地网络传不动 84MB 附件,交给 GitHub 自己的网络
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "上传到哪个 release tag (如 v1.2.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          pip install -r desktop/requirements.txt pyinstaller
+
+      - name: PyInstaller 构建
+        run: pyinstaller desktop/feiying.spec --noconfirm --distpath dist --workpath build
+
+      - name: 下载 mpv + xray
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/feiying/bin | Out-Null
+          # mpv: zhongfly 构建的 latest x86_64 包(7z)
+          $rel = Invoke-RestMethod https://api.github.com/repos/zhongfly/mpv-winbuild/releases/latest
+          $asset = $rel.assets | Where-Object { $_.name -match '^mpv-x86_64-2' -and $_.name -notmatch 'v3' } | Select-Object -First 1
+          Invoke-WebRequest $asset.browser_download_url -OutFile mpv.7z
+          7z x mpv.7z -ompvx | Out-Null
+          Copy-Item (Get-ChildItem -Recurse mpvx -Filter mpv.exe | Select-Object -First 1).FullName dist/feiying/bin/mpv.exe
+          # xray
+          Invoke-WebRequest https://github.com/XTLS/Xray-core/releases/latest/download/Xray-windows-64.zip -OutFile xray.zip
+          Expand-Archive xray.zip xrayx
+          Copy-Item xrayx/xray.exe dist/feiying/bin/xray.exe
+
+      - name: 确定 tag 和版本
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.tag }}' } else { '${{ github.ref_name }}' }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "ver=$($tag.TrimStart('v'))" >> $env:GITHUB_OUTPUT
+
+      - name: 打 zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/feiying -DestinationPath "feiying-desktop_${{ steps.ver.outputs.ver }}_win64.zip"
+
+      - name: 冒烟测试(服务能起、Web 能通)
+        shell: pwsh
+        run: |
+          $env:FEIYING_DATA = "$env:TEMP\feiying-smoke"
+          $env:FEIYING_WEB_PORT = "18099"
+          $p = Start-Process dist/feiying/feiying.exe -PassThru
+          $ok = $false
+          foreach ($i in 1..30) {
+            Start-Sleep 2
+            try { $r = Invoke-WebRequest http://127.0.0.1:18099/ -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { $ok = $true; break } } catch {}
+          }
+          Stop-Process $p -Force -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "smoke test failed: web not up" }
+          Write-Output "smoke ok"
+
+      - name: 上传到 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload ${{ steps.ver.outputs.tag }} "feiying-desktop_${{ steps.ver.outputs.ver }}_win64.zip" --clobber --repo ${{ github.repository }}
