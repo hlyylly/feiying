@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from .. import state, service, tg, control, follows, updater
+from .. import state, service, tg, control, follows, updater, library
 from ..config import DEFAULTS
 
 TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
@@ -85,5 +85,44 @@ def create_app():
             return JSONResponse({"ok": False, "msg": "未登录"})
         rec = await control.ingest(name)
         return JSONResponse({"ok": rec["status"] == "done", **rec})
+
+    @app.get("/library", response_class=HTMLResponse)
+    async def library_page(request: Request):
+        return TEMPLATES.TemplateResponse(
+            request, "library.html",
+            {"items": library.items(), "desktop": state.player is not None,
+             "stream_base": (state.cfg.stream_base or
+                             "http://127.0.0.1:%d" % state.cfg.stream_port).rstrip("/")})
+
+    @app.post("/library/remove")
+    async def library_remove(id: str = Form(...)):
+        library.remove(id)
+        return JSONResponse({"ok": True})
+
+    @app.post("/play")
+    async def play(id: str = Form(...), ep: int = Form(0)):
+        """desktop 版专用:调内嵌播放器播缓存流。NAS 版没有注入 player,直接拒绝。"""
+        if state.player is None:
+            return JSONResponse({"ok": False, "msg": "仅桌面版支持播放"})
+        it = next((x for x in library.items() if x["id"] == id), None)
+        if not it:
+            return JSONResponse({"ok": False, "msg": "库里没有这条"})
+        base = "http://127.0.0.1:%d" % state.cfg.stream_port
+        if it["type"] == "movie":
+            ext = os.path.splitext(it.get("filename", "") or "")[1] or ".mp4"
+            url = "%s/%s/%d/movie%s" % (base, it["channel"], it["mid"], ext)
+            title = it["title"]
+        else:
+            e = next((x for x in it["episodes"] if x["ep"] == ep), None)
+            if not e:
+                return JSONResponse({"ok": False, "msg": "没有第 %d 集" % ep})
+            ext = os.path.splitext(e.get("filename", "") or "")[1] or ".mp4"
+            url = "%s/%s/%d/ep%02d%s" % (base, it["channel"], e["mid"], ep, ext)
+            title = "%s E%02d" % (it["title"], ep)
+        try:
+            state.player(url, title)
+            return JSONResponse({"ok": True, "msg": "已调起播放器"})
+        except Exception as e:
+            return JSONResponse({"ok": False, "msg": repr(e)})
 
     return app

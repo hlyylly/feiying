@@ -1,6 +1,6 @@
 """追更:定时对追更列表里的剧重新发现,只补新增集,并在收藏夹通知。"""
 import asyncio, glob, os, re, time
-from . import state, finder, strm, follows
+from . import state, finder, strm, follows, library
 
 
 def existing_eps(show, season=1):
@@ -10,7 +10,7 @@ def existing_eps(show, season=1):
         m = re.search(r"S\d+E(\d+)", os.path.basename(f))
         if m:
             eps.add(int(m.group(1)))
-    return eps
+    return eps | library.series_eps(show, season)   # desktop 版没有 .strm,以库索引为准
 
 
 async def check_one(show, season=1):
@@ -28,6 +28,7 @@ async def check_one(show, season=1):
         return 0
     n, d = strm.write_strm(show, res["channel"], res["episodes"],
                            res.get("season", season), clear=False)
+    library.add_series(show, res["channel"], res["episodes"], res.get("season", season))
     eps = sorted(e["ep"] for e in res["episodes"])
     print("[updater] 《%s》+%d集 %s" % (show, n, eps), flush=True)
     try:

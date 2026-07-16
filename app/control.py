@@ -1,7 +1,7 @@
 """收藏夹(Saved Messages)监听:用户发片名 → 入库管线 → 回编同一条消息显示进度。"""
 import time
 from telethon import events
-from . import state, finder, strm, ai, follows
+from . import state, finder, strm, ai, follows, library
 
 PROGRESS_MARKS = ("🔍", "✅", "❌", "⏳")
 _handler = None
@@ -54,10 +54,14 @@ async def ingest(text, msg=None):
             if result.get("parts"):
                 n, d = strm.write_movie_parts(rec["show"], result.get("year"),
                                               result["channel"], result["parts"])
+                library.add_movie_parts(rec["show"], result.get("year"),
+                                        result["channel"], result["parts"])
                 await show("🎬 电影《%s%s》已入库(%d 段),去飞牛刷新即可" % (rec["show"], yr, n))
             else:
                 n, d = strm.write_movie(rec["show"], result.get("year"), result["channel"],
                                         result["mid"], result.get("filename", ""))
+                library.add_movie(rec["show"], result.get("year"), result["channel"],
+                                  result["mid"], result.get("filename", ""))
                 await show("🎬 电影《%s%s》已入库,去飞牛刷新即可" % (rec["show"], yr))
             rec["count"] = n
             rec["status"] = "done"
@@ -68,6 +72,7 @@ async def ingest(text, msg=None):
             return rec
         season = result.get("season", 1)
         n, d = strm.write_strm(film, result["channel"], result["episodes"], season)
+        library.add_series(film, result["channel"], result["episodes"], season)
         follows.add(film, season)    # 剧集自动加入追更
         rec["count"] = n
         rec["status"] = "done"

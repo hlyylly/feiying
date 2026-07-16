@@ -173,7 +173,8 @@ class CacheServer:
                 st = os.stat(p)
             except OSError:
                 continue
-            sz = st.st_blocks * 512
+            # Windows 无 st_blocks,退化用表观大小(NTFS 稀疏文件会高估,宁多删不超配额)
+            sz = getattr(st, "st_blocks", 0) * 512 or st.st_size
             files.append((st.st_atime, p, sz, n))
             total += sz
         files.sort()
@@ -307,7 +308,8 @@ class CacheServer:
             for n in os.listdir(CACHE_DIR):
                 if n.endswith(".bin"):
                     try:
-                        total += os.stat(os.path.join(CACHE_DIR, n)).st_blocks * 512
+                        st = os.stat(os.path.join(CACHE_DIR, n))
+                        total += getattr(st, "st_blocks", 0) * 512 or st.st_size
                     except OSError:
                         pass
         except OSError:

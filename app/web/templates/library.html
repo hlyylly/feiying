@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>飞影 — 媒体库</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --fg:#e6e8ee; --mut:#8b93a7; --ok:#3fb950; --bad:#f85149; --acc:#58a6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.6 -apple-system,system-ui,"PingFang SC",sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; } .sub { color:var(--mut); margin:0 0 20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin:0 0 16px; }
+  .card h2 { font-size:16px; margin:0 0 4px; display:flex; align-items:center; gap:8px; }
+  button { background:var(--acc); color:#04122b; border:0; border-radius:8px; padding:9px 16px; font-weight:600; cursor:pointer; }
+  button.sec { background:#232833; color:var(--fg); }
+  .pill { font-size:12px; padding:2px 9px; border-radius:20px; }
+  .pill.ok { background:rgba(63,185,80,.15); color:var(--ok); }
+  .pill.acc { background:rgba(88,166,255,.15); color:var(--acc); }
+  .muted { color:var(--mut); font-size:12px; }
+  .msg { font-size:13px; margin-top:8px; min-height:18px; }
+  .eps { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .eps button { padding:5px 11px; font-weight:500; background:#232833; color:var(--fg); }
+  .eps button:hover { background:var(--acc); color:#04122b; }
+  .bar { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  a.back { color:var(--acc); text-decoration:none; font-size:13px; }
+  .del { color:var(--bad); font-size:12px; cursor:pointer; margin-left:auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <h1 style="margin:0">📚 媒体库</h1>
+    <a class="back" href="/">← 返回控制台</a>
+  </div>
+  <p class="sub">{% if desktop %}点集数直接播放(边看边缓存){% else %}NAS 版请在飞牛影视/Emby 里观看;这里可复制流地址用 mpv/PotPlayer 等直接播{% endif %}</p>
+
+  {% if not items %}
+  <div class="card"><span class="muted">库还是空的。回控制台发个片名入库吧。</span></div>
+  {% endif %}
+
+  {% for it in items %}
+  <div class="card" id="card-{{ loop.index }}">
+    <h2>{{ '🎬' if it.type == 'movie' else '📺' }} {{ it.title }}
+      {% if it.type == 'movie' and it.year %}<span class="muted">({{ it.year }})</span>{% endif %}
+      {% if it.type == 'series' %}<span class="pill acc">S{{ '%02d' % it.season }} · {{ it.episodes|length }} 集</span>{% endif %}
+      <span class="del" onclick="removeItem('{{ it.id }}')">移除</span>
+    </h2>
+    <div class="muted">来源: {{ it.channel }}</div>
+    {% if it.type == 'movie' %}
+      <div class="eps">
+      {% if desktop %}
+        <button onclick="play('{{ it.id }}', 0, this)">▶ 播放</button>
+      {% else %}
+        <button class="sec" onclick="copyUrl('{{ stream_base }}/{{ it.channel }}/{{ it.mid }}/movie', this)">复制流地址</button>
+      {% endif %}
+      </div>
+    {% else %}
+      <div class="eps">
+      {% for e in it.episodes %}
+        {% if desktop %}
+        <button onclick="play('{{ it.id }}', {{ e.ep }}, this)">{{ '%02d' % e.ep }}</button>
+        {% else %}
+        <button onclick="copyUrl('{{ stream_base }}/{{ it.channel }}/{{ e.mid }}/ep{{ '%02d' % e.ep }}', this)">{{ '%02d' % e.ep }}</button>
+        {% endif %}
+      {% endfor %}
+      </div>
+    {% endif %}
+    <div class="msg"></div>
+  </div>
+  {% endfor %}
+</div>
+<script>
+async function play(id, ep, btn) {
+  const msg = btn.closest('.card').querySelector('.msg');
+  msg.textContent = '正在调起播放器…';
+  const fd = new FormData(); fd.append('id', id); fd.append('ep', ep);
+  const r = await (await fetch('/play', {method:'POST', body:fd})).json();
+  msg.textContent = r.msg || (r.ok ? '' : '失败');
+  if (r.ok) setTimeout(() => msg.textContent = '', 3000);
+}
+async function copyUrl(url, btn) {
+  const msg = btn.closest('.card').querySelector('.msg');
+  try { await navigator.clipboard.writeText(url); msg.textContent = '已复制: ' + url; }
+  catch (e) { msg.textContent = url; }
+}
+async function removeItem(id) {
+  if (!confirm('从库里移除?(不删缓存,可重新入库)')) return;
+  const fd = new FormData(); fd.append('id', id);
+  await fetch('/library/remove', {method:'POST', body:fd});
+  location.reload();
+}
+</script>
+</body>
+</html>
