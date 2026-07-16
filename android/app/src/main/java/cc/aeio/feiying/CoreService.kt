@@ -35,14 +35,23 @@ class CoreService : Service() {
         if (!started) {
             started = true
             Thread {
-                if (!Python.isStarted()) Python.start(AndroidPlatform(this))
-                val py = Python.getInstance()
-                py.getModule("mobile_shell").callAttr(
-                    "start",
-                    filesDir.absolutePath,
-                    applicationInfo.nativeLibraryDir,
-                    PlayerBridge(this)
-                )
+                try {
+                    if (!Python.isStarted()) Python.start(AndroidPlatform(this))
+                    val py = Python.getInstance()
+                    py.getModule("mobile_shell").callAttr(
+                        "start",
+                        filesDir.absolutePath,
+                        applicationInfo.nativeLibraryDir,
+                        PlayerBridge(this)
+                    )
+                } catch (e: Throwable) {
+                    // python 起不来时把 Kotlin 侧堆栈也落盘,MainActivity 会显示出来
+                    try {
+                        val dir = java.io.File(filesDir, "feiying").apply { mkdirs() }
+                        java.io.File(dir, "kotlin_crash.log")
+                            .appendText(android.util.Log.getStackTraceString(e) + "\n")
+                    } catch (_: Exception) {}
+                }
             }.apply { isDaemon = true }.start()
         }
     }

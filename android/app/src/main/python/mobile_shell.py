@@ -4,6 +4,9 @@ import os
 import traceback
 
 
+WEB_PORT = 27125          # 冷门端口:8080 在部分手机上被其它应用占用(还带 HTTP 认证)
+
+
 def start(files_dir, native_lib_dir, player_bridge):
     os.environ.setdefault("FEIYING_DATA", os.path.join(files_dir, "feiying"))
     xray = os.path.join(native_lib_dir, "libxray.so")
@@ -26,7 +29,7 @@ def start(files_dir, native_lib_dir, player_bridge):
 
         async def amain():
             await service.boot()
-            uconf = uvicorn.Config(create_app(), host="127.0.0.1", port=8080,
+            uconf = uvicorn.Config(create_app(), host="127.0.0.1", port=WEB_PORT,
                                    log_level="warning", loop="asyncio")
             await uvicorn.Server(uconf).serve()
 

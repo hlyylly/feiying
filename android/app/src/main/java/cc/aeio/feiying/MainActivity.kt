@@ -6,22 +6,24 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.TextUtils
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private lateinit var web: WebView
-    private val url = "http://127.0.0.1:8080/"
+    private val url = "http://127.0.0.1:27125/"   // 与 mobile_shell.WEB_PORT 一致
     private val handler = Handler(Looper.getMainLooper())
+    private var fails = 0
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 起核心前台服务(python: telethon+web+缓存流)
         val svc = Intent(this, CoreService::class.java)
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(svc) else startService(svc)
 
@@ -30,12 +32,31 @@ class MainActivity : AppCompatActivity() {
         web.settings.domStorageEnabled = true
         web.webViewClient = object : WebViewClient() {
             override fun onReceivedError(v: WebView?, req: WebResourceRequest?, err: WebResourceError?) {
-                // 服务还没起来,1.5 秒后重试
-                if (req?.isForMainFrame == true) handler.postDelayed({ web.loadUrl(url) }, 1500)
+                if (req?.isForMainFrame != true) return
+                fails++
+                // 前 20 次(约 30 秒)按"服务还在启动"重试;仍不通就把崩溃日志亮出来
+                if (fails >= 20) showCrash() else handler.postDelayed({ web.loadUrl(url) }, 1500)
             }
         }
         setContentView(web)
         web.loadUrl(url)
+    }
+
+    private fun showCrash() {
+        fails = 0
+        val py = File(filesDir, "feiying/android_crash.log")
+        val kt = File(filesDir, "feiying/kotlin_crash.log")
+        val txt = buildString {
+            append("核心服务启动失败。请把下面的信息截图反馈:\n\n")
+            if (kt.exists()) append(kt.readText()).append("\n")
+            if (py.exists()) append(py.readText())
+            if (!kt.exists() && !py.exists()) append("(没有崩溃日志——服务可能还在首次解包依赖,可点下方重试)")
+        }
+        val html = "<html><body style='background:#0f1115;color:#e6e8ee;font-family:monospace;" +
+            "white-space:pre-wrap;word-break:break-all;padding:16px;font-size:12px'>" +
+            TextUtils.htmlEncode(txt) +
+            "<br><br><a href='$url' style='color:#58a6ff;font-size:16px'>↻ 重试</a></body></html>"
+        web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
     }
 
     override fun onBackPressed() {
