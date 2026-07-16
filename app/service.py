@@ -25,11 +25,14 @@ async def connect_client():
 
 
 async def start_services():
-    """登录成功后:缓存流服务(端口只绑一次) + (重新)注册收藏夹监听。"""
-    if state.cache is None:
+    """登录成功后:缓存流服务(端口只绑一次) + (重新)注册收藏夹监听 + 断点续缓。"""
+    first = state.cache is None
+    if first:
         state.cache = cache_server.CacheServer(state.cfg)
         await state.cache.start()
     control.register()
+    if first:
+        asyncio.create_task(state.cache.resume_incomplete())
 
 
 async def _start_watchdog():

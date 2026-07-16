@@ -214,6 +214,38 @@ class CacheServer:
                 asyncio.create_task(self.prefetch_next_episode(c.ch, c.mid))
         return c
 
+    async def resume_incomplete(self, limit=2):
+        """断点续缓:启动时找出没下完的缓存(位图有0),按最近使用优先恢复预取。
+        最多 limit 部,避免开机就挤满带宽;正在看的请求随时可插队(demand 优先)。"""
+        try:
+            cand = []
+            for n in os.listdir(CACHE_DIR):
+                if not n.endswith(".bin"):
+                    continue
+                p = os.path.join(CACHE_DIR, n)
+                try:
+                    bits = open(p[:-4] + ".bm", "rb").read()
+                    st = os.stat(p)
+                except OSError:
+                    continue              # 没位图=从没开始下,不算断点
+                if not bits or all(bits):  # 全1=已下完
+                    continue
+                cand.append((max(st.st_atime, st.st_mtime), n))
+            cand.sort(reverse=True)
+            for _, n in cand[:limit]:
+                try:
+                    ch, mid = _parse_name(n)
+                    msg = await self.get_msg(ch, mid)
+                    if not msg or not msg.file:
+                        continue
+                    c = self.get_cacher((ch, mid), msg.file.size, msg, chain=False)
+                    c.start_prefetch()
+                    print("[cache] 续缓 %s %d/%d" % (n, c.cached_blocks(), c.nblocks), flush=True)
+                except Exception as e:
+                    print("[cache] 续缓失败", n, repr(e), flush=True)
+        except Exception as e:
+            print("[cache] resume err", repr(e), flush=True)
+
     async def prefetch_next_episode(self, ch, mid):
         try:
             ent = await state.client.get_entity(ch)
