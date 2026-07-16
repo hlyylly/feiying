@@ -6,3 +6,9 @@ __pycache__/
 DOCKERHUB.md
 飞牛论坛发帖.md
 desktop/bin/
+dist/
+build/
+android/.gradle/
+android/app/build/
+android/app/src/main/python/app/
+android/app/src/main/jniLibs/

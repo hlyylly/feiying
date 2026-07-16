@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'cc.aeio.feiying'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "cc.aeio.feiying"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.3.0"
+        ndk { abiFilters "arm64-v8a" }
+    }
+
+    // xray 以 libxray.so 名义放 jniLibs,安装时解出真实文件才能 exec
+    packagingOptions { jniLibs { useLegacyPackaging = true } }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+}
+
+chaquopy {
+    defaultConfig {
+        version "3.11"
+        pip {
+            // CI 在构建前把仓库根的 app/ 拷进 src/main/python/,核心零改动复用
+            install "telethon==1.44.0"
+            install "pyaes"                 // 无 cryptg 时 telethon 的纯 python 兜底
+            install "fastapi"
+            install "uvicorn"
+            install "httpx"
+            install "python-multipart"
+            install "jinja2"
+            install "python-socks[asyncio]"
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}
