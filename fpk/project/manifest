@@ -1,5 +1,5 @@
 appname               = feiying
-version               = 1.1.0
+version               = 1.3.0
 display_name          = 飞影
 desc                  = 发个片名，自动从 Telegram 搜片、生成 .strm 入库飞牛影视/Emby，秒播、边看边缓存、剧集自动追更。开源项目：github.com/hlyylly/feiying
 arch                  = x86_64
