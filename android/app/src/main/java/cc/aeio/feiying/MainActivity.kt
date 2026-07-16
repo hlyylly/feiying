@@ -30,6 +30,8 @@ class MainActivity : AppCompatActivity() {
         web = WebView(this)
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
+        // 不设 WebChromeClient 的话,页面里的 confirm()/alert() 会被静默吞掉(库页"移除"依赖它)
+        web.webChromeClient = android.webkit.WebChromeClient()
         web.webViewClient = object : WebViewClient() {
             override fun onReceivedError(v: WebView?, req: WebResourceRequest?, err: WebResourceError?) {
                 if (req?.isForMainFrame != true) return
