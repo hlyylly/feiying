@@ -2,9 +2,12 @@ package cc.aeio.feiying
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.Gravity
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.media3.common.MediaItem
@@ -31,7 +34,24 @@ class PlayerActivity : AppCompatActivity() {
         view = PlayerView(this)
         view.setShowNextButton(false)
         view.setShowPreviousButton(false)
-        setContentView(view)
+
+        // 左上角返回按钮,跟播放控制条一起显示/隐藏
+        val back = TextView(this)
+        back.text = "‹ 返回"
+        back.textSize = 17f
+        back.setTextColor(Color.WHITE)
+        back.setPadding(44, 28, 44, 28)
+        back.setBackgroundColor(0x66000000)
+        back.setOnClickListener { finish() }
+        view.setControllerVisibilityListener(
+            PlayerView.ControllerVisibilityListener { v -> back.visibility = v })
+
+        val root = FrameLayout(this)
+        root.addView(view, FrameLayout.LayoutParams(-1, -1))
+        val lp = FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START)
+        lp.setMargins(24, 24, 0, 0)
+        root.addView(back, lp)
+        setContentView(root)
 
         val p = ExoPlayer.Builder(this).build()
         player = p
