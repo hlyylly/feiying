@@ -50,7 +50,8 @@ def _run_core(port):
     import uvicorn
     from app import state, config, service, follows
     from app.web.routes import create_app
-    from . import player
+    # PyInstaller 下 shell.py 是顶层入口脚本(无父包),不能用相对导入
+    from desktop import player
 
     async def amain():
         state.cfg = config.Config.load()
