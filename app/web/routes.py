@@ -9,13 +9,21 @@ from ..config import DEFAULTS
 TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
 
+def _render(request, name, ctx):
+    """兼容新老 starlette:1.x 只认 (request, name, ctx),0.2x(安卓端)只认 (name, {request 在 ctx 里})。"""
+    try:
+        return TEMPLATES.TemplateResponse(request, name, ctx)
+    except (TypeError, ValueError):
+        return TEMPLATES.TemplateResponse(name, dict(request=request, **ctx))
+
+
 def create_app():
     app = FastAPI(title="飞影")
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request):
-        return TEMPLATES.TemplateResponse(
-            request, "index.html", {"cfg": state.cfg.public_dict(), "st": service.status()})
+        return _render(request, "index.html",
+                       {"cfg": state.cfg.public_dict(), "st": service.status()})
 
     @app.post("/save")
     async def save(
@@ -88,11 +96,10 @@ def create_app():
 
     @app.get("/library", response_class=HTMLResponse)
     async def library_page(request: Request):
-        return TEMPLATES.TemplateResponse(
-            request, "library.html",
-            {"items": library.items(), "desktop": state.player is not None,
-             "stream_base": (state.cfg.stream_base or
-                             "http://127.0.0.1:%d" % state.cfg.stream_port).rstrip("/")})
+        return _render(request, "library.html",
+                       {"items": library.items(), "desktop": state.player is not None,
+                        "stream_base": (state.cfg.stream_base or
+                                        "http://127.0.0.1:%d" % state.cfg.stream_port).rstrip("/")})
 
     @app.post("/library/remove")
     async def library_remove(id: str = Form(...)):

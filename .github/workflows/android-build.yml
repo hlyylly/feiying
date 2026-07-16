@@ -54,6 +54,34 @@ jobs:
           name: feiying-android-apk
           path: ${{ steps.apk.outputs.file }}
 
+      - name: 启用 KVM(模拟器加速)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: 模拟器冒烟测试(装APK→起服务→页面200)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          profile: pixel_4
+          disable-animations: true
+          script: |
+            adb install "${{ steps.apk.outputs.file }}"
+            adb shell am start -n cc.aeio.feiying/.MainActivity
+            adb forward tcp:27125 tcp:27125
+            ok=0
+            for i in $(seq 1 60); do
+              if curl -sf http://127.0.0.1:27125/ | grep -q "飞影"; then ok=1; break; fi
+              sleep 3
+            done
+            if [ "$ok" = "1" ]; then curl -sf http://127.0.0.1:27125/library > /dev/null || ok=0; fi
+            echo "---- logcat(python相关) ----"
+            adb logcat -d | grep -iE "python|chaquo|AndroidRuntime|feiying" | tail -60 || true
+            [ "$ok" = "1" ] || { echo "smoke FAILED"; exit 1; }
+            echo "smoke ok: / 和 /library 都 200"
+
       - name: 挂到 Release(可选)
         if: inputs.tag != ''
         env:
