@@ -25,6 +25,10 @@ def start(files_dir, native_lib_dir, player_bridge):
         state.cfg = config.Config.load()
         follows.load()
         state.player = lambda url, title="": player_bridge.play(url, title)
+        # NAS 默认的 /media/* 在安卓上不可写,入库写 .strm 会崩;改到应用数据目录
+        if state.cfg.media_dir == "/media/tv":
+            state.cfg.set(media_dir=os.path.join(config.DATA_DIR, "media", "tv"),
+                          movie_dir=os.path.join(config.DATA_DIR, "media", "movies"))
         print("[android] 数据目录:", config.DATA_DIR, flush=True)
 
         async def amain():

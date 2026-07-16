@@ -34,12 +34,22 @@ class MainActivity : AppCompatActivity() {
             override fun onReceivedError(v: WebView?, req: WebResourceRequest?, err: WebResourceError?) {
                 if (req?.isForMainFrame != true) return
                 fails++
-                // 前 20 次(约 30 秒)按"服务还在启动"重试;仍不通就把崩溃日志亮出来
-                if (fails >= 20) showCrash() else handler.postDelayed({ web.loadUrl(url) }, 1500)
+                // 前 20 次(约 30 秒)按"服务还在启动"处理:显示过渡页并重试;仍不通亮崩溃日志
+                if (fails >= 20) { showCrash(); return }
+                showSplash()
+                handler.postDelayed({ web.loadUrl(url) }, 1500)
             }
         }
         setContentView(web)
         web.loadUrl(url)
+    }
+
+    private fun showSplash() {
+        val html = "<html><body style='background:#0f1115;color:#8b93a7;display:flex;" +
+            "align-items:center;justify-content:center;height:95vh;font-family:sans-serif'>" +
+            "<div style='text-align:center'><div style='font-size:44px'>🎬</div>" +
+            "<div style='margin-top:12px'>飞影核心服务启动中…</div></div></body></html>"
+        web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null)
     }
 
     private fun showCrash() {
