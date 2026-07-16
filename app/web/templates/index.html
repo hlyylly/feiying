@@ -49,7 +49,7 @@
   {% if not st.logged_in %}
   <div class="card">
     <h2>① 登录 Telegram</h2>
-    <div class="muted">先在下方配置好联网方式(vmess/外部代理,能直连 TG 则都不用填)并保存,再登录。验证码会发到你手机 Telegram App。</div>
+    <div class="muted">先确认联网方式:手机开着翻墙 App(VPN 模式)或网络本身能连 TG 的,<b>什么都不用填直接登录</b>;否则在下方填 vmess/外部代理并保存。验证码会发到你手机 Telegram App。</div>
     <label>手机号(带国家码,如 +8613800000000)</label>
     <div class="row"><div><input id="phone" placeholder="+86..."></div><div style="flex:0 0 120px"><button class="sec" onclick="sendCode()">发送验证码</button></div></div>
     <label>验证码</label>
@@ -92,7 +92,7 @@
     <textarea name="vmess" placeholder="vmess://...">{{ cfg.vmess }}</textarea>
     <label>外部代理地址(可选)</label>
     <input name="proxy_url" value="{{ cfg.proxy_url }}" placeholder="socks5://192.168.1.1:1080 或 http://ip:port">
-    <div class="hint">三种联网方式任选:填 vmess 链接=内置 xray;填外部代理=用现成的常驻代理(优先于 vmess);都留空=直连(适合旁路由/透明代理/海外网络)</div>
+    <div class="hint">三种联网方式任选:都留空=直连(手机开翻墙App/旁路由/透明代理/海外网络,推荐);填 vmess 链接=内置 xray;填外部代理=用现成的常驻代理(优先于 vmess)</div>
     <div class="row">
       <div><label>deepseek API key</label><input name="deepseek_key" value="{{ cfg.deepseek_key }}" placeholder="sk-...">
         <div class="hint">留空则用正则兜底,不做 AI 匹配</div></div>
