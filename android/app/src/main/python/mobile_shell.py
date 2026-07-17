@@ -19,7 +19,7 @@ def _patch_telethon_aes(native_lib_dir):
     ctypes.util.find_library = lambda name: libcrypto if name == "ssl" else orig(name)
 
 
-def start(files_dir, native_lib_dir, player_bridge):
+def start(files_dir, native_lib_dir, player_bridge, tv_mode=False):
     os.environ.setdefault("FEIYING_DATA", os.path.join(files_dir, "feiying"))
     xray = os.path.join(native_lib_dir, "libxray.so")
     if os.path.exists(xray):
@@ -49,7 +49,10 @@ def start(files_dir, native_lib_dir, player_bridge):
 
         async def amain():
             await service.boot()
-            uconf = uvicorn.Config(create_app(), host="127.0.0.1", port=WEB_PORT,
+            # TV 模式绑 0.0.0.0:遥控不便输入,配置交给局域网里的手机/电脑浏览器
+            host = "0.0.0.0" if tv_mode else "127.0.0.1"
+            print("[android] web on %s:%d tv=%s" % (host, WEB_PORT, tv_mode), flush=True)
+            uconf = uvicorn.Config(create_app(), host=host, port=WEB_PORT,
                                    log_level="warning", loop="asyncio")
             await uvicorn.Server(uconf).serve()
 

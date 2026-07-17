@@ -9,6 +9,19 @@ from ..config import DEFAULTS
 TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
 
+def _lan_ip():
+    """取本机局域网 IP(不真发包,connect UDP 只为选路由)。"""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("223.5.5.5", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "本机IP"
+
+
 def _render(request, name, ctx):
     """兼容新老 starlette:1.x 只认 (request, name, ctx),0.2x(安卓端)只认 (name, {request 在 ctx 里})。"""
     try:
@@ -93,6 +106,13 @@ def create_app():
             return JSONResponse({"ok": False, "msg": "未登录"})
         rec = await control.ingest(name)
         return JSONResponse({"ok": rec["status"] == "done", **rec})
+
+    @app.get("/tv", response_class=HTMLResponse)
+    async def tv_page(request: Request):
+        """电视大屏页:只留 搜索+媒体库,大焦点遥控导航;完整配置走局域网网页。"""
+        return _render(request, "tv.html",
+                       {"items": library.items(), "st": service.status(),
+                        "lan_ip": _lan_ip(), "web_port": request.url.port or 80})
 
     @app.get("/library", response_class=HTMLResponse)
     async def library_page(request: Request):

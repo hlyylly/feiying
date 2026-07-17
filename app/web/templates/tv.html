@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>飞影 TV</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --fg:#e6e8ee; --mut:#8b93a7; --acc:#58a6ff; --ok:#3fb950; --bad:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:20px/1.6 -apple-system,system-ui,"PingFang SC",sans-serif; padding:40px 56px; }
+  h1 { font-size:34px; margin:0; display:flex; align-items:center; gap:16px; }
+  .cfg { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 22px; margin:22px 0 30px; color:var(--mut); font-size:19px; }
+  .cfg b { color:var(--acc); font-size:22px; letter-spacing:1px; }
+  .pill { font-size:16px; padding:3px 14px; border-radius:20px; }
+  .pill.ok { background:rgba(63,185,80,.15); color:var(--ok); }
+  .pill.bad { background:rgba(248,81,73,.15); color:var(--bad); }
+  /* 遥控焦点:所有可聚焦元素给大高亮 */
+  input, button { font:inherit; border-radius:12px; outline:none; }
+  input:focus, button:focus { outline:4px solid var(--acc); outline-offset:2px; transform:scale(1.03); }
+  .searchrow { display:flex; gap:16px; margin-bottom:34px; }
+  .searchrow input { flex:1; background:#0f1218; border:1px solid var(--line); color:var(--fg); padding:16px 20px; font-size:22px; }
+  .searchrow button { background:var(--acc); color:#04122b; border:0; padding:16px 38px; font-weight:700; font-size:22px; cursor:pointer; }
+  .msg { min-height:34px; font-size:20px; color:var(--acc); margin:-16px 0 18px; }
+  h2 { font-size:26px; margin:8px 0 18px; }
+  .show { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px 26px; margin-bottom:22px; }
+  .show h3 { font-size:24px; margin:0 0 6px; }
+  .show .src { color:var(--mut); font-size:16px; margin-bottom:14px; }
+  .eps { display:flex; flex-wrap:wrap; gap:14px; }
+  .eps button { background:#232833; color:var(--fg); border:0; padding:14px 24px; font-size:21px; cursor:pointer; min-width:84px; }
+  .eps button:focus { background:var(--acc); color:#04122b; }
+  .empty { color:var(--mut); font-size:22px; padding:40px 0; }
+</style>
+</head>
+<body>
+  <h1>🎬 飞影 TV
+    <span class="pill {{ 'ok' if st.logged_in else 'bad' }}">{{ 'TG已登录' if st.logged_in else 'TG未登录' }}</span>
+    <span class="pill {{ 'ok' if st.source else 'bad' }}">{{ '资源已配' if st.source else '资源未配' }}</span>
+  </h1>
+
+  <div class="cfg">⚙️ 配置请用手机/电脑浏览器打开 <b>http://{{ lan_ip }}:{{ web_port }}</b>（代理·登录·资源源·AI），电视上只管搜和看</div>
+
+  <div class="searchrow">
+    <input id="film" placeholder="输入片名搜索入库,如: 炽夏" enterkeyhint="search">
+    <button onclick="ingest()" id="goBtn">搜 索</button>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <h2>📚 媒体库</h2>
+  {% if not items %}<div class="empty">库还是空的,搜个片名试试;或在手机网页上入库,这里刷新即见。</div>{% endif %}
+  {% for it in items %}
+  <div class="show">
+    <h3>{{ '🎬' if it.type == 'movie' else '📺' }} {{ it.title }}
+      {% if it.type == 'movie' and it.year %}<span style="color:var(--mut)">({{ it.year }})</span>{% endif %}</h3>
+    <div class="src">{{ ('第 ' ~ it.season ~ ' 季 · ' ~ (it.episodes|length) ~ ' 集') if it.type == 'series' else '电影' }}</div>
+    <div class="eps">
+      {% if it.type == 'movie' %}
+      <button onclick="play('{{ it.id }}', 0)">▶ 播放</button>
+      {% else %}
+      {% for e in it.episodes %}<button onclick="play('{{ it.id }}', {{ e.ep }})">{{ '%02d' % e.ep }}</button>{% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+
+<script>
+const msg = document.getElementById('msg');
+document.getElementById('film').addEventListener('keydown', e => { if (e.key === 'Enter') ingest(); });
+
+async function ingest() {
+  const name = document.getElementById('film').value.trim();
+  if (!name) { msg.textContent = '先输入片名'; return; }
+  msg.textContent = '🔍 搜索《' + name + '》中,AI 匹配约需十几秒…';
+  document.getElementById('goBtn').disabled = true;
+  try {
+    const fd = new FormData(); fd.append('name', name);
+    const r = await (await fetch('/ingest', {method:'POST', body:fd})).json();
+    msg.textContent = r.ok ? ('✅ 已入库 ' + (r.count || '') + ' · 刷新中…') : ('❌ ' + (r.msg || r.status || '失败'));
+    if (r.ok) setTimeout(() => location.reload(), 1200);
+  } catch (e) { msg.textContent = '❌ ' + e; }
+  document.getElementById('goBtn').disabled = false;
+}
+
+async function play(id, ep) {
+  msg.textContent = '▶ 正在起播…';
+  const fd = new FormData(); fd.append('id', id); fd.append('ep', ep);
+  const r = await (await fetch('/play', {method:'POST', body:fd})).json();
+  msg.textContent = r.ok ? '' : ('❌ ' + r.msg);
+}
+</script>
+</body>
+</html>

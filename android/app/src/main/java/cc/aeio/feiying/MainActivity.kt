@@ -16,7 +16,10 @@ import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private lateinit var web: WebView
-    private val url = "http://127.0.0.1:27125/"   // 与 mobile_shell.WEB_PORT 一致
+    // 与 mobile_shell.WEB_PORT 一致;电视上进大屏页(搜索+媒体库),配置走局域网网页
+    private val url by lazy {
+        if (Tv.isTv(this)) "http://127.0.0.1:27125/tv" else "http://127.0.0.1:27125/"
+    }
     private val handler = Handler(Looper.getMainLooper())
     private var fails = 0
 

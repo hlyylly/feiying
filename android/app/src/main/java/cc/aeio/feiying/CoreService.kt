@@ -42,7 +42,8 @@ class CoreService : Service() {
                         "start",
                         filesDir.absolutePath,
                         applicationInfo.nativeLibraryDir,
-                        PlayerBridge(this)
+                        PlayerBridge(this),
+                        Tv.isTv(this)
                     )
                 } catch (e: Throwable) {
                     // python 起不来时把 Kotlin 侧堆栈也落盘,MainActivity 会显示出来
