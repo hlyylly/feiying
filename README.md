@@ -12,7 +12,8 @@
 | 飞牛 fnOS | 应用中心 fpk 一键安装 | 飞牛影视 / Emby |
 | 任意 NAS/服务器 | Docker Compose | 飞牛影视 / Emby / Jellyfin |
 | **Windows** | 免安装 exe（[Releases](https://github.com/hlyylly/feiying/releases) 下载 zip） | 内置 mpv 播放器 |
-| **Android** | APK 直装（[Releases](https://github.com/hlyylly/feiying/releases) 下载） | 内置 ExoPlayer，可转外部播放器 |
+| **Android 手机/平板** | APK 直装（[Releases](https://github.com/hlyylly/feiying/releases) 下载） | 内置 ExoPlayer，可转外部播放器 |
+| **Android TV/盒子** | 同一个 APK，装上自动进大屏遥控模式 | 内置 ExoPlayer，遥控快进/暂停 |
 
 ## 能干什么
 - 🔎 **多种资源源**：TG 频道直传视频 / 搜索 bot（如极搜）/ 深链令牌 bot（如 Youxiu_bot，自动翻页收全集）/ 多源兜底
@@ -39,8 +40,10 @@
 ### 方式二：Windows 桌面版（不用 NAS）
 从 [Releases](https://github.com/hlyylly/feiying/releases) 下载 `feiying-desktop_x.y.z_win64.zip`，解压双击 `feiying.exe`——窗口里配置，媒体库点集数即用内置 mpv 播放，数据在 `%APPDATA%\feiying`。详见 [desktop/README.md](desktop/README.md)。
 
-### 方式三：Android 版
-从 [Releases](https://github.com/hlyylly/feiying/releases) 下载 `feiying-android_x.y.z_arm64.apk` 直接安装（允许未知来源）。手机开着翻墙 App 就不用配代理，内置 ExoPlayer 播放器拖动丝滑，格式不支持可一键转外部播放器（mpv-android/VLC）。国产 ROM 记得给「无限制后台」权限。详见 [android/README.md](android/README.md)。
+### 方式三：Android 版（手机 / 平板 / 电视，同一个 APK）
+从 [Releases](https://github.com/hlyylly/feiying/releases) 下载 `feiying-android_x.y.z_arm64.apk` 直接安装（允许未知来源）。手机开着翻墙 App 就不用配代理，内置 ExoPlayer 播放器拖动丝滑，格式不支持可一键转外部播放器（mpv-android/VLC）。国产 ROM 记得给「无限制后台」权限。
+
+**电视/盒子大屏模式**：装同一个 APK（U 盘或当贝远程推送），自动识别 TV 进入遥控界面——电视上只有「搜索 + 媒体库」大按钮，方向键导航、OK 播放；**全部配置在同一 WiFi 下用手机/电脑浏览器打开电视屏幕顶部显示的 `http://电视IP:27125` 完成**，遥控零输入。详见 [android/README.md](android/README.md)。
 
 ### 方式四：Docker Compose
 镜像已发布在 Docker Hub（[`mn4940128/feiying`](https://hub.docker.com/r/mn4940128/feiying)，amd64），连源码都不用 clone，写个 compose 就能跑：
