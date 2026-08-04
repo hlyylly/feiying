@@ -1,5 +1,5 @@
 """配置读写。所有配置落地 DATA_DIR/config.json，单实例单账号。"""
-import json, os
+import json, os, re
 
 DATA_DIR = os.environ.get("FEIYING_DATA", "/data")
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
@@ -26,6 +26,24 @@ DEFAULTS = {
     "dl_sem": 5,              # 全局下载并发上限
     "update_interval_hours": 12,  # 追更检查间隔(小时)
 }
+
+
+def normalize_stream_base(s):
+    """规范化 stream_base 并校验。返回 (规范值, 错误提示或 None)。
+    常见误填:把它当成一个**目录**填了 NAS 路径 —— 它是飞牛/播放器访问流服务的 URL。"""
+    s = (s or "").strip().rstrip("/")
+    if not s:
+        return "", "未填 stream_base,.strm 会指向 127.0.0.1,飞牛和播放器都打不开"
+    if s.startswith("/") or "\\" in s or re.match(r"^[A-Za-z]:", s):
+        return "", "stream_base 是访问地址不是目录,应形如 http://192.168.3.8:8890"
+    if not s.startswith(("http://", "https://")):
+        s = "http://" + s                      # 只填了 IP:端口 → 自动补协议
+    if not re.match(r"^https?://[^/\s:]+(:\d+)?$", s):
+        return s, "stream_base 格式不对,应形如 http://192.168.3.8:8890(不带路径)"
+    host = re.sub(r"^https?://", "", s).split(":")[0]
+    if host in ("127.0.0.1", "localhost", "0.0.0.0"):
+        return s, "stream_base 不能填 127.0.0.1/localhost,要填飞牛的**局域网 IP**"
+    return s, None
 
 
 class Config:

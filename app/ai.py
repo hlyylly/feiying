@@ -3,13 +3,18 @@
 import json, re, httpx
 from . import state
 
+AI_CAND_LIMIT = 400      # 给模型看的候选条数上限(百集长剧一集一条,150 会把后半部剧砍掉)
+AI_MAX_TOKENS = 8192     # 输出上限:184 集的 episodes 数组约 2~3K token,默认 4K 不够稳
 
-async def _chat(messages, json_mode=True, timeout=45):
+
+async def _chat(messages, json_mode=True, timeout=45, max_tokens=None):
     cfg = state.cfg
     if not cfg.deepseek_key:
         return None
     base = (cfg.deepseek_base or "https://api.deepseek.com/v1").rstrip("/")
     payload = {"model": cfg.deepseek_model, "messages": messages, "temperature": 0}
+    if max_tokens:      # 百集长剧的 episodes 数组很长,默认 4K 输出会被截断成半截 JSON
+        payload["max_tokens"] = max_tokens
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient(timeout=timeout) as h:
@@ -89,7 +94,7 @@ async def analyze(film, candidates):
             r["type"] = "series"
         return r
     lst = [{"mid": c["mid"], "channel": c["channel"], "filename": c["filename"],
-            "sizeMB": round(c["size"] / 1048576)} for c in candidates[:150]]
+            "sizeMB": round(c["size"] / 1048576)} for c in candidates[:AI_CAND_LIMIT]]
     prompt = ("片名: %s\n候选视频消息(来自不可信的TG聚合搜索):\n%s\n\n"
               "⚠️重要:候选来自公开聚合搜索,里面**大量混有色情/擦边/垃圾内容,它们常盗用热门影视名当诱饵**"
               "(如把黄片命名成'沙丘.2021.mp4',或频道名含 NoMask/无码/AV 等)。你**只能看到文件名**,必须严格甄别。\n"
@@ -105,7 +110,7 @@ async def analyze(film, candidates):
               "无匹配: {\"type\":\"none\"}") % (film, json.dumps(lst, ensure_ascii=False), film)
     try:
         out = await _chat([{"role": "system", "content": "你是精准的影视资源整理器,严格只输出JSON。"},
-                           {"role": "user", "content": prompt}])
+                           {"role": "user", "content": prompt}], max_tokens=AI_MAX_TOKENS)
         data = json.loads(out)
         bymid = {c["mid"]: c for c in candidates}
         typ = data.get("type")
@@ -137,7 +142,7 @@ async def analyze(film, candidates):
 async def pick_deeplink(film, items):
     """深链bot条目挑选。items=[{token,title,bot}](title是描述如'沙丘 上集 英配 2021')。
     返回 {type:'movie|series|none', title, year, season, picks:[{i,ep}]}。i=items下标。"""
-    lst = [{"i": i, "title": items[i]["title"]} for i in range(len(items))]
+    lst = [{"i": i, "title": items[i]["title"]} for i in range(min(len(items), AI_CAND_LIMIT))]
     if not state.cfg.deepseek_key:
         # 无AI兜底:标题含片名核心字 + 解析集/part
         core = re.sub(r"[\s\d季集第部]", "", film)
@@ -163,7 +168,7 @@ async def pick_deeplink(film, items):
               "\"version\":\"所选版本简述\",\"picks\":[{\"i\":0,\"ep\":1}]},picks按ep升序。") % (film, json.dumps(lst, ensure_ascii=False), film)
     try:
         out = await _chat([{"role": "system", "content": "你是精准的影视资源整理器,严格只输出JSON。"},
-                           {"role": "user", "content": prompt}])
+                           {"role": "user", "content": prompt}], max_tokens=AI_MAX_TOKENS)
         data = json.loads(out)
         if data.get("type") not in ("movie", "series") or not data.get("picks"):
             return None

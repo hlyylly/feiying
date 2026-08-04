@@ -2,6 +2,8 @@
 Web 和 main 都通过它驱动。"""
 import asyncio
 from . import state, proxy as proxymod, tg, cache_server, watchdog, updater
+from . import __version__
+from .config import normalize_stream_base
 
 _flags = {"watchdog": False, "updater": False}
 
@@ -83,6 +85,8 @@ async def recover():
 
 def status():
     return {
+        "version": __version__,
+        "stream_base_err": normalize_stream_base(state.cfg.stream_base)[1],
         "logged_in": bool(state.cfg.session),
         "phone": state.cfg.phone,
         "proxy_running": bool(state.proxy and state.proxy.is_running()),

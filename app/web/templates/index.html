@@ -31,7 +31,10 @@
 <body>
 <div class="wrap">
   <h1>🎬 飞影 <a href="/library" style="font-size:14px;color:var(--acc);text-decoration:none;font-weight:400;margin-left:8px">📚 媒体库</a></h1>
-  <p class="sub">发个片名 → 自动入库到飞牛。TG 直传视频 · 缓存流播 · AI 智能匹配</p>
+  <p class="sub">发个片名 → 自动入库到飞牛。TG 直传视频 · 缓存流播 · AI 智能匹配
+    <a href="https://github.com/hlyylly/feiying/releases" target="_blank" rel="noopener"
+       style="color:var(--muted);text-decoration:none">v{{ st.version }}</a>
+    <span id="newver"></span></p>
 
   <div class="card">
     <h2>状态</h2>
@@ -43,7 +46,10 @@
       <span class="pill {{ 'ok' if st.source else 'bad' }}">{{ '种子群已配' if st.source else '未配种子群' }}</span>
       <span class="pill ok">缓存 {{ st.cache_gb }}/{{ st.quota_gb }} GB</span>
     </div>
-    <div class="muted">流服务地址(飞牛媒体库.strm指向): {{ st.stream_base or '未设置,请在下方填 stream_base' }}</div>
+    <div class="muted">流服务地址(飞牛媒体库.strm指向): {{ st.stream_base or '未设置' }}</div>
+    {% if err or st.stream_base_err %}
+    <div class="msg" style="color:var(--bad);margin-top:6px">⚠ {{ err or st.stream_base_err }}</div>
+    {% endif %}
   </div>
 
   {% if not st.logged_in %}
@@ -102,9 +108,10 @@
       <div><label>剧集目录(容器内)</label><input name="media_dir" value="{{ cfg.media_dir }}"></div>
       <div><label>电影目录(容器内)</label><input name="movie_dir" value="{{ cfg.movie_dir }}"></div>
     </div>
-    <label>stream_base(飞牛访问缓存流服务的地址)</label>
-    <input name="stream_base" value="{{ cfg.stream_base }}" placeholder="http://192.168.3.8:8890">
-    <div class="hint">必须填你飞牛的局域网 IP + 流端口,否则 .strm 指不到本机</div>
+    <label>stream_base(飞牛/播放器访问缓存流服务的<b>网址</b>,不是目录)</label>
+    <input id="sbase" name="stream_base" value="{{ cfg.stream_base }}" placeholder="http://{{ lan_ip }}:{{ cfg.stream_port }}">
+    <div class="hint">必须是 <code>http://局域网IP:流端口</code>,填目录路径或 127.0.0.1 都会导致飞牛/PotPlayer 打不开。
+      <a href="#" onclick="document.getElementById('sbase').value='http://{{ lan_ip }}:{{ cfg.stream_port }}';return false">填入 http://{{ lan_ip }}:{{ cfg.stream_port }}</a></div>
     <div class="row">
       <div><label>缓存配额 GB</label><input name="cache_quota_gb" type="number" value="{{ cfg.cache_quota_gb }}"></div>
       <div><label>预取并发(≤5,别调高)</label><input name="prefetch_workers" type="number" value="{{ cfg.prefetch_workers }}"></div>
@@ -157,6 +164,15 @@ async function ingest(){ const m=document.getElementById('ingestMsg'); m.textCon
 async function unfollow(show){ await post('/unfollow',{show}); location.reload(); }
 async function checkNow(){ const m=document.getElementById('followMsg'); m.textContent='触发中…';
   const r=await post('/check_now',{}); m.textContent=r.msg||''; }
+// 查最新版(连不上 GitHub 就当没这回事,不影响页面)
+(function(){ const cur='{{ st.version }}';
+  const cmp=(a,b)=>{a=a.split('.').map(Number);b=b.split('.').map(Number);
+    for(let i=0;i<3;i++){ if((a[i]||0)!==(b[i]||0)) return (a[i]||0)-(b[i]||0); } return 0; };
+  fetch('https://api.github.com/repos/hlyylly/feiying/releases/latest').then(r=>r.json()).then(d=>{
+    const v=(d.tag_name||'').replace(/^v/,'');
+    if(v && cmp(v,cur)>0) document.getElementById('newver').innerHTML=
+      ' → <a href="https://github.com/hlyylly/feiying/releases" target="_blank" rel="noopener" style="color:var(--acc)">有新版 v'+v+'</a>';
+  }).catch(()=>{}); })();
 </script>
 </body>
 </html>

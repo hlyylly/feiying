@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from .. import state, service, tg, control, follows, updater, library
-from ..config import DEFAULTS
+from ..config import DEFAULTS, normalize_stream_base
 
 TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
@@ -34,9 +34,10 @@ def create_app():
     app = FastAPI(title="飞影")
 
     @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request):
+    async def index(request: Request, err: str = ""):
         return _render(request, "index.html",
-                       {"cfg": state.cfg.public_dict(), "st": service.status()})
+                       {"cfg": state.cfg.public_dict(), "st": service.status(),
+                        "lan_ip": _lan_ip(), "err": err})
 
     @app.post("/save")
     async def save(
@@ -50,6 +51,7 @@ def create_app():
         prefetch_workers: int = Form(4), dl_sem: int = Form(5),
         api_id: int = Form(DEFAULTS["api_id"]), api_hash: str = Form(DEFAULTS["api_hash"]),
     ):
+        stream_base, _err = normalize_stream_base(stream_base)   # 只填 IP:端口自动补 http://
         kw = dict(source=source, vmess=vmess, proxy_url=proxy_url.strip(),
                   deepseek_base=deepseek_base,
                   deepseek_model=deepseek_model, media_dir=media_dir, movie_dir=movie_dir,
@@ -60,6 +62,9 @@ def create_app():
             kw["deepseek_key"] = deepseek_key
         state.cfg.set(**kw)
         await service.reload_after_config()
+        if _err and not stream_base:      # 填的东西没法用(如填了目录),回首页说清楚原因
+            from urllib.parse import quote
+            return RedirectResponse("/?err=" + quote(_err), status_code=303)
         return RedirectResponse("/", status_code=303)
 
     @app.post("/login/send")

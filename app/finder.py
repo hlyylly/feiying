@@ -8,6 +8,8 @@ import asyncio, re
 from telethon.tl.types import MessageEntityTextUrl, User
 from . import state, ai
 
+SEARCH_LIMIT = 300      # 每个群/频道翻多少条搜索结果:长剧(百集以上)一集一条,80 收不全
+MAX_SCAN_IDS = 1200     # 按 t.me 链接回扫频道时,一次最多扫多少条消息 id
 VIDEO_EXT = (".mp4", ".mkv", ".ts", ".avi", ".m2ts", ".mov")
 LINK_RE = re.compile(r"https?://t\.me/([A-Za-z0-9_]+)/(\d+)")
 DEEPLINK_RE = re.compile(r"https?://t\.me/([A-Za-z0-9_]+)\?start=([A-Za-z0-9_\-]+)")
@@ -72,7 +74,7 @@ def _page_info(m):
     return (int(mm.group(1)), int(mm.group(2))) if mm else (None, None)
 
 
-async def _from_bot(ent, film, max_pages=6):
+async def _from_bot(ent, film, max_pages=20):
     """给 bot 发片名,读回复;深链bot有翻页则自动翻页收全(点「下一页」回调→轮询到页码+1再收集)。
     返回 (t.me链接, 深链条目)。"""
     c = state.client
@@ -139,10 +141,12 @@ async def _resolve_links(links):
         bych[ch].append(mid)
     out = []
     for ch, mids in bych.items():
-        lo, hi = min(mids) - 15, max(mids) + 60
+        ids = list(range(min(mids) - 15, max(mids) + 61))
+        if len(ids) > MAX_SCAN_IDS:   # 链接在频道里跨度太大,别把整段历史拉下来(会 flood-wait)
+            ids = sorted({i for mid in mids for i in range(mid - 5, mid + 25)})
         try:
             ent = await c.get_entity(ch)
-            msgs = await c.get_messages(ent, ids=list(range(lo, hi + 1)))
+            msgs = await c.get_messages(ent, ids=ids)
         except Exception as e:
             print("[finder] 解析链接频道失败", ch, repr(e), flush=True)
             continue
@@ -170,7 +174,7 @@ async def _redeem(botname, token):
     return None
 
 
-async def _collect(film, limit=80):
+async def _collect(film, limit=SEARCH_LIMIT):
     """从所有源收集 (直传视频候选, t.me链接, 深链条目)。"""
     c = state.client
     candidates, all_links, all_deep = [], [], []
@@ -215,7 +219,7 @@ async def _discover_deeplinks(film, deeplinks):
             "year": pick.get("year"), "season": pick.get("season", 1), "bot": bot, "picks": picks}
 
 
-async def discover(film, limit=80):
+async def discover(film, limit=SEARCH_LIMIT):
     """搜索+判定,返回可获取的分集清单(深链不兑换)。追更用它做增量对比。"""
     candidates, all_links, all_deep = await _collect(film, limit)
     if all_deep:
@@ -282,7 +286,7 @@ async def materialize(discovery, eps=None):
             "parts": [{"mid": p["mid"], "ep": p["ep"], "filename": p["filename"]} for p in parts]}
 
 
-async def find(film, limit=80):
+async def find(film, limit=SEARCH_LIMIT):
     """一次性入库:发现 + 全部兑换。"""
     d = await discover(film, limit)
     if not d:
