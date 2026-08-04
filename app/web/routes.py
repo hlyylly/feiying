@@ -98,7 +98,7 @@ def create_app():
             return JSONResponse({"ok": False, "msg": "未登录"})
         import asyncio
         asyncio.create_task(updater.check_all())
-        return JSONResponse({"ok": True, "msg": "已触发追更检查(后台进行,有更新会发到收藏夹)"})
+        return JSONResponse({"ok": True, "msg": "已触发追更检查(后台进行,有更新会出现在下方入库记录)"})
 
     @app.post("/ingest")
     async def do_ingest(name: str = Form(...)):

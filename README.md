@@ -20,7 +20,7 @@
 - 🧠 **AI 智能匹配**（deepseek）：从一堆杂乱结果里挑出正确的正片，解析集数，自然语言片名理解，排除盗名/预告/花絮等无关结果
 - 🎬 **电影 & 剧集自动分类**：电影进电影库、剧集进剧集库；分段电影做成上下集顺序播
 - ⚡ **缓存流播**：秒开、多连接预取、看过的本地秒回、滚动预取下一集、LRU 自动淘汰
-- 📺 **自动追更**：入库的剧自动追，定时查新集、只补新增、更新发到你的 TG 收藏夹
+- 📺 **自动追更**：入库的剧自动追，定时查新集、只补新增，更新记录在 Web 首页可见
 - 🔒 **内置网络代理**：填一个 vmess/vless 链接即可连接 Telegram，内置 xray
 - 🛠 **Web 配置/状态页** + 进程内自愈看门狗
 
@@ -73,7 +73,7 @@ docker compose up -d
 2. **登录**：填手机号 → 发送验证码 → 手机 Telegram 收码 → 填码登录（有两步验证就填密码）
 3. 填**资源 bot**（机器人，别填公开群）、**deepseek key**、**stream_base**（见下），保存
 4. 媒体服务器里建两个库：**电视剧** → `/media/tv` 挂载对应的宿主目录，**电影** → `/media/movies` 对应目录
-5. 收藏夹发片名（或 Web 里输入）→ 入库 → 媒体库刷新即可观看
+5. Web 里输入片名 → 入库 → 媒体库刷新即可观看
 
 ## 关键配置
 - **stream_base**：媒体服务器访问缓存流服务的地址，必须是 `http://<主机局域网IP>:8890`，否则 .strm 指不到本机。
@@ -98,7 +98,7 @@ app/
   proxy.py       vmess/vless→xray          tg.py     登录(send_code/sign_in/2FA)
   ai.py          deepseek 匹配/判定(正则兜底)         finder.py 多源搜索(discover/materialize)
   cache_server.py 块缓存流播(预取/环形/滚动/LRU)      strm.py   生成 .strm
-  control.py     收藏夹监听→入库           follows.py 追更列表   updater.py 定时追更
+  control.py     入库管线(Web 调用)        follows.py 追更列表   updater.py 定时追更
   watchdog.py    进程内自愈                web/      FastAPI 配置/状态页
 ```
 

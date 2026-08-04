@@ -1,7 +1,7 @@
-"""生命周期编排:起代理 → 连 client → (已登录则)起缓存流服务 + 注册收藏夹监听 + 看门狗。
+"""生命周期编排:起代理 → 连 client → (已登录则)起缓存流服务 + 看门狗。
 Web 和 main 都通过它驱动。"""
 import asyncio
-from . import state, proxy as proxymod, tg, cache_server, control, watchdog, updater
+from . import state, proxy as proxymod, tg, cache_server, watchdog, updater
 
 _flags = {"watchdog": False, "updater": False}
 
@@ -25,13 +25,10 @@ async def connect_client():
 
 
 async def start_services():
-    """登录成功后:缓存流服务(端口只绑一次) + (重新)注册收藏夹监听 + 断点续缓。"""
-    first = state.cache is None
-    if first:
+    """登录成功后:缓存流服务(端口只绑一次) + 断点续缓。"""
+    if state.cache is None:
         state.cache = cache_server.CacheServer(state.cfg)
         await state.cache.start()
-    control.register()
-    if first:
         asyncio.create_task(state.cache.resume_incomplete())
 
 

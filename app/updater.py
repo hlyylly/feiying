@@ -1,4 +1,4 @@
-"""追更:定时对追更列表里的剧重新发现,只补新增集,并在收藏夹通知。"""
+"""追更:定时对追更列表里的剧重新发现,只补新增集,结果记进 Web 首页的入库记录。"""
 import asyncio, glob, os, re, time
 from . import state, finder, strm, follows, library
 
@@ -31,12 +31,9 @@ async def check_one(show, season=1):
     library.add_series(show, res["channel"], res["episodes"], res.get("season", season))
     eps = sorted(e["ep"] for e in res["episodes"])
     print("[updater] 《%s》+%d集 %s" % (show, n, eps), flush=True)
-    try:
-        await state.client.send_message(
-            "me", "📺 《%s》更新 %d 集: %s,去飞牛刷新" %
-            (show, n, ",".join("E%02d" % e for e in eps)))
-    except Exception:
-        pass
+    state.add_ingest({"name": show, "show": show, "count": n, "status": "done",
+                      "msg": "追更 %d 集: %s" % (n, ",".join("E%02d" % e for e in eps)),
+                      "ts": int(time.time())})
     return n
 
 

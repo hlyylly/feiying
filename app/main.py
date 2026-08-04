@@ -1,4 +1,4 @@
-"""入口:单事件循环里同时跑 uvicorn(Web) + telethon(client/收藏夹) + 缓存流服务 + 看门狗。"""
+"""入口:单事件循环里同时跑 uvicorn(Web) + telethon client + 缓存流服务 + 看门狗。"""
 import asyncio
 import os
 import uvicorn
