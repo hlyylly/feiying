@@ -2,11 +2,12 @@
 import asyncio
 import os
 import uvicorn
-from . import state, config, service, follows
+from . import state, config, service, follows, logbuf
 from .web.routes import create_app
 
 
 async def amain():
+    logbuf.install()         # 尽早接住日志,启动阶段的报错也要能在 Web 上看到
     os.umask(0o022)          # 新写的 .strm 用 644/目录755,飞牛影视才读得到
     state.cfg = config.Config.load()
     follows.load()

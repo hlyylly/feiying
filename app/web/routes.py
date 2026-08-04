@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from .. import state, service, tg, control, follows, updater, library
+from .. import state, service, tg, control, follows, updater, library, logbuf
 from ..config import DEFAULTS, normalize_stream_base
 
 TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
@@ -31,6 +31,7 @@ def _render(request, name, ctx):
 
 
 def create_app():
+    logbuf.install()          # desktop/安卓不走 app.main,在这兜底
     app = FastAPI(title="飞影")
 
     @app.get("/", response_class=HTMLResponse)
@@ -111,6 +112,15 @@ def create_app():
             return JSONResponse({"ok": False, "msg": "未登录"})
         rec = await control.ingest(name)
         return JSONResponse({"ok": rec["status"] == "done", **rec})
+
+    @app.get("/logs", response_class=HTMLResponse)
+    async def logs_page(request: Request):
+        """fpk/安卓装的进不去 docker logs,日志得能在网页上看。"""
+        return _render(request, "logs.html", {"st": service.status()})
+
+    @app.get("/logs.json")
+    async def logs_json(n: int = 400):
+        return JSONResponse({"lines": logbuf.tail(max(1, min(n, 800)))})
 
     @app.get("/tv", response_class=HTMLResponse)
     async def tv_page(request: Request):

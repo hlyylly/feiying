@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>飞影 — 运行日志</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --fg:#e6e8ee; --mut:#8b93a7; --ok:#3fb950; --bad:#f85149; --acc:#58a6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.6 -apple-system,system-ui,"PingFang SC",sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; padding:24px 16px 40px; }
+  h1 { font-size:22px; margin:0 0 4px; } .sub { color:var(--mut); margin:0 0 16px; font-size:13px; }
+  .bar { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  a.back { color:var(--acc); text-decoration:none; font-size:13px; }
+  button { background:#232833; color:var(--fg); border:0; border-radius:8px; padding:7px 14px; font-size:13px; cursor:pointer; }
+  button.on { background:var(--acc); color:#04122b; font-weight:600; }
+  pre { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px;
+        margin:0; max-height:70vh; overflow:auto; font:12px/1.55 ui-monospace,Menlo,Consolas,monospace;
+        white-space:pre-wrap; word-break:break-all; }
+  .muted { color:var(--mut); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar"><a class="back" href="/">← 返回</a>
+    <span class="muted">v{{ st.version }}</span></div>
+  <h1>🪵 运行日志</h1>
+  <p class="sub">进程内最近 800 行。搜片失败、入库报错、代理断线都会记在这里；报问题时把相关几行贴出来最省事。
+    密钥和手机号已自动打码。</p>
+  <div class="bar">
+    <button id="autoBtn" class="on" onclick="toggle()">自动刷新: 开</button>
+    <button onclick="load()">立即刷新</button>
+    <button onclick="copyAll()">复制全部</button>
+    <span class="muted" id="meta"></span>
+  </div>
+  <pre id="log">加载中…</pre>
+</div>
+<script>
+const el = document.getElementById('log'), meta = document.getElementById('meta');
+let auto = true, timer = null;
+
+async function load(){
+  try {
+    const r = await (await fetch('/logs.json')).json();
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    el.textContent = (r.lines || []).join('\n') || '(还没有日志)';
+    meta.textContent = (r.lines || []).length + ' 行';
+    if (atBottom) el.scrollTop = el.scrollHeight;
+  } catch(e) { meta.textContent = '读取失败'; }
+}
+function toggle(){
+  auto = !auto;
+  const b = document.getElementById('autoBtn');
+  b.textContent = '自动刷新: ' + (auto ? '开' : '关');
+  b.className = auto ? 'on' : '';
+  if (auto) { load(); timer = setInterval(load, 3000); } else { clearInterval(timer); }
+}
+function copyAll(){
+  navigator.clipboard.writeText(el.textContent).then(
+    () => meta.textContent = '已复制',
+    () => meta.textContent = '复制失败,手动选中吧');
+}
+load(); timer = setInterval(load, 3000);
+</script>
+</body>
+</html>
