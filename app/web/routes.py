@@ -9,8 +9,14 @@ from ..config import DEFAULTS, normalize_stream_base
 TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
 
-def _lan_ip():
-    """取本机局域网 IP(不真发包,connect UDP 只为选路由)。"""
+def _lan_ip(request=None):
+    """取「别人能访问到本机」的地址。
+    优先用浏览器访问本页所用的 host —— 用户既然能打开配置页,那个地址就一定是通的。
+    容器里 socket 探测只会探到 Docker 内网 IP(如 172.20.0.2),照着填 stream_base
+    飞牛和播放器都到不了,所以只在拿不到 host 时才退回去用它。"""
+    host = (request.url.hostname if request is not None else None) or ""
+    if host and host not in ("127.0.0.1", "localhost", "::1"):
+        return host
     import socket
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -38,7 +44,7 @@ def create_app():
     async def index(request: Request, err: str = ""):
         return _render(request, "index.html",
                        {"cfg": state.cfg.public_dict(), "st": service.status(),
-                        "lan_ip": _lan_ip(), "err": err})
+                        "lan_ip": _lan_ip(request), "err": err})
 
     @app.post("/save")
     async def save(
@@ -53,12 +59,16 @@ def create_app():
         api_id: int = Form(DEFAULTS["api_id"]), api_hash: str = Form(DEFAULTS["api_hash"]),
     ):
         stream_base, _err = normalize_stream_base(stream_base)   # 只填 IP:端口自动补 http://
-        kw = dict(source=source, vmess=vmess, proxy_url=proxy_url.strip(),
-                  deepseek_base=deepseek_base,
-                  deepseek_model=deepseek_model, media_dir=media_dir, movie_dir=movie_dir,
+        # 粘贴 key/地址常带首尾空白,带进 HTTP header 会直接 LocalProtocolError
+        kw = dict(source=source.strip(), vmess=vmess.strip(), proxy_url=proxy_url.strip(),
+                  deepseek_base=deepseek_base.strip(),
+                  deepseek_model=deepseek_model.strip(),
+                  media_dir=media_dir.strip(), movie_dir=movie_dir.strip(),
                   stream_base=stream_base,
                   stream_port=stream_port, cache_quota_gb=cache_quota_gb,
-                  prefetch_workers=prefetch_workers, dl_sem=dl_sem, api_id=api_id, api_hash=api_hash)
+                  prefetch_workers=prefetch_workers, dl_sem=dl_sem,
+                  api_id=api_id, api_hash=api_hash.strip())
+        deepseek_key = deepseek_key.strip()
         if deepseek_key and not deepseek_key.endswith("..."):   # 打码占位不覆盖
             kw["deepseek_key"] = deepseek_key
         state.cfg.set(**kw)
@@ -127,7 +137,7 @@ def create_app():
         """电视大屏页:只留 搜索+媒体库,大焦点遥控导航;完整配置走局域网网页。"""
         return _render(request, "tv.html",
                        {"items": library.items(), "st": service.status(),
-                        "lan_ip": _lan_ip(), "web_port": request.url.port or 80})
+                        "lan_ip": _lan_ip(request), "web_port": request.url.port or 80})
 
     @app.get("/library", response_class=HTMLResponse)
     async def library_page(request: Request):

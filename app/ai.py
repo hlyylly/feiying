@@ -9,24 +9,25 @@ AI_MAX_TOKENS = 8192     # 输出上限:184 集的 episodes 数组约 2~3K token
 
 async def _chat(messages, json_mode=True, timeout=45, max_tokens=None):
     cfg = state.cfg
-    if not cfg.deepseek_key:
+    key = (cfg.deepseek_key or "").strip()   # 老配置里可能存着带首尾空白的 key,
+    if not key:                              # 直接进 header 会 LocalProtocolError
         return None
-    base = (cfg.deepseek_base or "https://api.deepseek.com/v1").rstrip("/")
-    payload = {"model": cfg.deepseek_model, "messages": messages, "temperature": 0}
+    base = (cfg.deepseek_base or "https://api.deepseek.com/v1").strip().rstrip("/")
+    payload = {"model": (cfg.deepseek_model or "").strip(), "messages": messages, "temperature": 0}
     if max_tokens:      # 百集长剧的 episodes 数组很长,默认 4K 输出会被截断成半截 JSON
         payload["max_tokens"] = max_tokens
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient(timeout=timeout) as h:
         r = await h.post(base + "/chat/completions",
-                         headers={"Authorization": "Bearer " + cfg.deepseek_key},
+                         headers={"Authorization": "Bearer " + key},
                          json=payload)
         # 部分 OpenAI 兼容服务(某些本地/Ollama 模型)不支持 response_format=json_object,
         # 报 4xx 时去掉它重试一次,最大化多接口兼容性(deepseek/OpenAI 正常路径不受影响)。
         if r.status_code >= 400 and json_mode:
             payload.pop("response_format", None)
             r = await h.post(base + "/chat/completions",
-                             headers={"Authorization": "Bearer " + cfg.deepseek_key},
+                             headers={"Authorization": "Bearer " + key},
                              json=payload)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
@@ -88,7 +89,7 @@ async def analyze(film, candidates):
        无匹配 None。无 key 时用正则兜底(只认剧集)。"""
     if not candidates:
         return None
-    if not state.cfg.deepseek_key:
+    if not (state.cfg.deepseek_key or "").strip():
         r = _regex_select(film, candidates)
         if r:
             r["type"] = "series"
@@ -143,7 +144,7 @@ async def pick_deeplink(film, items):
     """深链bot条目挑选。items=[{token,title,bot}](title是描述如'沙丘 上集 英配 2021')。
     返回 {type:'movie|series|none', title, year, season, picks:[{i,ep}]}。i=items下标。"""
     lst = [{"i": i, "title": items[i]["title"]} for i in range(min(len(items), AI_CAND_LIMIT))]
-    if not state.cfg.deepseek_key:
+    if not (state.cfg.deepseek_key or "").strip():
         # 无AI兜底:标题含片名核心字 + 解析集/part
         core = re.sub(r"[\s\d季集第部]", "", film)
         picks = []
@@ -202,7 +203,7 @@ async def select(film, candidates):
     """(旧接口,保留)只挑剧集。返回 {channel, season, episodes} 或 None。"""
     if not candidates:
         return None
-    if not state.cfg.deepseek_key:
+    if not (state.cfg.deepseek_key or "").strip():
         return _regex_select(film, candidates)
     lst = [{"mid": c["mid"], "channel": c["channel"], "filename": c["filename"],
             "sizeMB": round(c["size"] / 1048576)} for c in candidates[:120]]

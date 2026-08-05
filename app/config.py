@@ -28,6 +28,30 @@ DEFAULTS = {
 }
 
 
+_self_ip = []
+
+
+def _own_ip():
+    if not _self_ip:
+        import socket
+        try:
+            k = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            k.connect(("223.5.5.5", 80))
+            _self_ip.append(k.getsockname()[0])
+            k.close()
+        except Exception:
+            _self_ip.append("")
+    return _self_ip[0]
+
+
+def _is_container_ip(host):
+    """172.16-31.x 且正好等于本机地址 = Docker bridge 里容器自己的 IP,容器外谁也到不了。
+    host 网络模式下本机 IP 是真实局域网地址(192.168/10.x),不会命中这里。"""
+    if not re.match(r"^172\.(1[6-9]|2\d|3[01])\.", host or ""):
+        return False
+    return bool(_own_ip()) and _own_ip() == host
+
+
 def normalize_stream_base(s):
     """规范化 stream_base 并校验。返回 (规范值, 错误提示或 None)。
     常见误填:把它当成一个**目录**填了 NAS 路径 —— 它是飞牛/播放器访问流服务的 URL。"""
@@ -43,6 +67,9 @@ def normalize_stream_base(s):
     host = re.sub(r"^https?://", "", s).split(":")[0]
     if host in ("127.0.0.1", "localhost", "0.0.0.0"):
         return s, "stream_base 不能填 127.0.0.1/localhost,要填飞牛的**局域网 IP**"
+    if _is_container_ip(host):
+        return s, ("%s 是 Docker 容器自己的内网 IP,容器外(飞牛媒体库、PotPlayer)都到不了。"
+                   "要填**飞牛主机**的局域网 IP,就是你现在打开这个配置页用的那个 IP" % host)
     return s, None
 
 
