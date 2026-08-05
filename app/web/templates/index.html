@@ -93,8 +93,10 @@
 
   <form method="post" action="/save" class="card">
     <h2>② 配置</h2>
-    <label>种子群 / 频道(资源源,多个逗号分隔;@jisou 这类搜索bot也行)</label>
+    <label>种子群 / 频道(资源源;@jisou 这类搜索bot也行)</label>
     <input name="source" value="{{ cfg.source }}" placeholder="AE9527x, @jisou">
+    <div class="hint">多个源用逗号分隔,中文逗号、分号、空格都认。填 bot 的话要先在 TG 里
+      /start 过它、且**没把它拉黑**,否则飞影发不出搜索请求。</div>
     <label>vmess:// 或 vless:// 代理链接</label>
     <textarea name="vmess" placeholder="vmess://...">{{ cfg.vmess }}</textarea>
     <label>外部代理地址(可选)</label>

@@ -6,7 +6,11 @@
 汇总后交 AI 选集/判电影。含色情/垃圾过滤。"""
 import asyncio, re
 from telethon.tl.types import MessageEntityTextUrl, User
+from telethon.errors import YouBlockedUserError
 from . import state, ai
+
+BLOCKED_HINT = ("[finder] 你在 TG 里把 @%s 拉黑了,飞影没法给它发搜索请求。"
+                "去 Telegram 打开和它的对话点「解除屏蔽」/重新 /start 一下再试")
 
 SEARCH_LIMIT = 300      # 每个群/频道翻多少条搜索结果:长剧(百集以上)一集一条,80 收不全
 MAX_SCAN_IDS = 1200     # 按 t.me 链接回扫频道时,一次最多扫多少条消息 id
@@ -164,7 +168,11 @@ async def _redeem(botname, token):
         before = (await c.get_messages(ent, limit=1))[0].id
     except Exception:
         before = 0
-    await c.send_message(ent, "/start " + token)
+    try:
+        await c.send_message(ent, "/start " + token)
+    except YouBlockedUserError:
+        print(BLOCKED_HINT % botname, flush=True)
+        return None
     for _ in range(4):
         await asyncio.sleep(3)
         for m in await c.get_messages(ent, limit=8):
@@ -184,14 +192,19 @@ async def _collect(film, limit=SEARCH_LIMIT):
         except Exception as e:
             print("[finder] 无法解析源", src, repr(e), flush=True)
             continue
-        if isinstance(ent, User) and getattr(ent, "bot", False):
-            tme, deep = await _from_bot(ent, film)
-            all_links += tme
-            all_deep += deep
-        else:
-            direct, links = await _from_entity(ent, src, film, limit)
-            candidates += direct
-            all_links += links
+        try:
+            if isinstance(ent, User) and getattr(ent, "bot", False):
+                tme, deep = await _from_bot(ent, film)
+                all_links += tme
+                all_deep += deep
+            else:
+                direct, links = await _from_entity(ent, src, film, limit)
+                candidates += direct
+                all_links += links
+        except YouBlockedUserError:      # 拉黑了这个 bot,跳过它,别让整次入库失败
+            print(BLOCKED_HINT % src, flush=True)
+        except Exception as e:           # 单个源出问题不该拖垮其它源
+            print("[finder] 源 %s 搜索失败: %r" % (src, e), flush=True)
     return candidates, all_links, all_deep
 
 

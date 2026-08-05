@@ -109,7 +109,10 @@ class Config:
         self.save()
 
     def sources(self):
-        return [s.strip().lstrip("@") for s in (self.source or "").split(",") if s.strip()]
+        """中英文逗号、分号、空格、换行都能当分隔符 —— 中文输入法打出的「，」很常见,
+        只认英文逗号的话整串会被当成一个源名,全部解析失败。"""
+        return [s.strip().lstrip("@")
+                for s in re.split(r"[,，;；、\s]+", self.source or "") if s.strip()]
 
     def public_dict(self):
         """给 Web 用,隐藏敏感值。"""
