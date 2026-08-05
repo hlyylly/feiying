@@ -87,6 +87,7 @@ def status():
     return {
         "version": __version__,
         "stream_base_err": normalize_stream_base(state.cfg.stream_base)[1],
+        "problems": state.problems,
         "logged_in": bool(state.cfg.session),
         "phone": state.cfg.phone,
         "proxy_running": bool(state.proxy and state.proxy.is_running()),

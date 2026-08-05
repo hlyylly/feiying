@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from .. import state, service, tg, control, follows, updater, library, logbuf
+from .. import state, service, tg, control, follows, updater, library, logbuf, selfcheck
 from ..config import DEFAULTS, normalize_stream_base
 
 TEMPLATES = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
@@ -38,6 +38,11 @@ def _render(request, name, ctx):
 
 def create_app():
     logbuf.install()          # desktop/安卓不走 app.main,在这兜底
+    if state.cfg is not None:
+        try:
+            selfcheck.run_once()
+        except Exception as e:
+            print("[自检] 跳过:", repr(e), flush=True)
     app = FastAPI(title="飞影")
 
     @app.get("/", response_class=HTMLResponse)
@@ -72,6 +77,7 @@ def create_app():
         if deepseek_key and not deepseek_key.endswith("..."):   # 打码占位不覆盖
             kw["deepseek_key"] = deepseek_key
         state.cfg.set(**kw)
+        selfcheck.run()          # 配置变了,自检结论跟着更新
         await service.reload_after_config()
         if _err and not stream_base:      # 填的东西没法用(如填了目录),回首页说清楚原因
             from urllib.parse import quote

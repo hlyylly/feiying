@@ -48,8 +48,14 @@
       <span class="pill ok">缓存 {{ st.cache_gb }}/{{ st.quota_gb }} GB</span>
     </div>
     <div class="muted">流服务地址(飞牛媒体库.strm指向): {{ st.stream_base or '未设置' }}</div>
-    {% if err or st.stream_base_err %}
-    <div class="msg" style="color:var(--bad);margin-top:6px">⚠ {{ err or st.stream_base_err }}</div>
+    {% if err %}
+    <div class="msg" style="color:var(--bad);margin-top:6px">⚠ {{ err }}</div>
+    {% endif %}
+    {% if st.problems %}
+    <div class="msg" style="color:var(--bad);margin-top:6px">
+      {% for p in st.problems %}<div>⚠ {{ p }}</div>{% endfor %}
+      <div class="muted" style="margin-top:4px">详情见 <a href="/logs" style="color:var(--acc)">🪵 日志</a> 里的 [自检] 行</div>
+    </div>
     {% endif %}
   </div>
 

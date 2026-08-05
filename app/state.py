@@ -8,6 +8,7 @@ login_state = {}      # 登录中间态: {phone, phone_code_hash}
 ingests = []          # 最近入库记录 [{name, show, count, status, ts}]
 follows = []          # 追更列表 [{show, season, ts, last, last_count}]
 player = None         # desktop 版注入的播放回调 play(url, title);NAS 版恒为 None
+problems = []         # selfcheck 发现的配置问题,首页红字展示
 
 
 def add_ingest(rec):

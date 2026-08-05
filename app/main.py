@@ -2,7 +2,7 @@
 import asyncio
 import os
 import uvicorn
-from . import state, config, service, follows, logbuf
+from . import state, config, service, follows, logbuf, selfcheck
 from .web.routes import create_app
 
 
@@ -12,6 +12,7 @@ async def amain():
     state.cfg = config.Config.load()
     follows.load()
     print("[main] 配置已加载, data=%s 追更%d部" % (config.DATA_DIR, len(state.follows)), flush=True)
+    selfcheck.run()
     await service.boot()
     app = create_app()
     uconf = uvicorn.Config(app, host="0.0.0.0", port=8080, log_level="info", loop="asyncio")
