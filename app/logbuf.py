@@ -37,20 +37,36 @@ class _Null:
 
 
 class _Tee:
+    """print("a", b) 在 CPython 里是多次 write("a")/write(" ")/write(str(b))/write("\\n"),
+    每次 write 都切一行的话,一条日志会被劈成好几行(异常信息尤其容易被甩到下一行)。
+    所以攒着半行,遇到换行才入库。"""
+
     def __init__(self, orig):
         self._orig = orig
+        self._pend = ""
 
     def write(self, s):
         try:
             self._orig.write(s)
         except Exception:
             pass
-        for ln in (s or "").splitlines():
-            if ln.strip():
-                BUF.append("%s %s" % (time.strftime("%m-%d %H:%M:%S"), _scrub(ln)))
+        self._pend += s or ""
+        while "\n" in self._pend:
+            ln, self._pend = self._pend.split("\n", 1)
+            self._append(ln)
+        if len(self._pend) > 4000:      # 没有换行的超长输出,别无限攒
+            self._append(self._pend)
+            self._pend = ""
         return len(s or "")
 
+    def _append(self, ln):
+        if ln.strip():
+            BUF.append("%s %s" % (time.strftime("%m-%d %H:%M:%S"), _scrub(ln.rstrip("\r"))))
+
     def flush(self):
+        if self._pend.strip():          # flush 时把没换行的残句也落下,别丢日志
+            self._append(self._pend)
+            self._pend = ""
         try:
             self._orig.flush()
         except Exception:
