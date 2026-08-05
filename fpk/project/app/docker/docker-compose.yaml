@@ -13,3 +13,8 @@ services:
       - ${TRIM_PKGVAR:?}/media/movies:/media/movies
     environment:
       - TZ=Asia/Shanghai
+      # 容器里没法可靠反推宿主绝对路径(mountinfo 只给相对源文件系统根的路径,
+      # 存储池是独立分区时会少 /volN 前缀),所以把向导填的路径原样传进去,
+      # 自检直接把「飞牛媒体库该指哪」印在日志里。apply-settings 会改写这两行。
+      - FEIYING_HOST_TV=
+      - FEIYING_HOST_MOVIES=

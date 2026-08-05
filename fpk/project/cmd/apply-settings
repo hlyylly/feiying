@@ -21,6 +21,8 @@ apply_tv_dir() {
     [ -z "$1" ] && return
     mkdir -p "$1" 2>/dev/null || true
     sed -i "s|^      - .*:/media/tv\$|      - $1:/media/tv|" "$COMPOSE"
+    # 把宿主真实路径传给容器,自检好告诉用户飞牛媒体库该指哪个目录
+    sed -i "s|^      - FEIYING_HOST_TV=.*\$|      - FEIYING_HOST_TV=$1|" "$COMPOSE"
     save_setting tv_dir "$1"
 }
 
@@ -28,6 +30,7 @@ apply_movie_dir() {
     [ -z "$1" ] && return
     mkdir -p "$1" 2>/dev/null || true
     sed -i "s|^      - .*:/media/movies\$|      - $1:/media/movies|" "$COMPOSE"
+    sed -i "s|^      - FEIYING_HOST_MOVIES=.*\$|      - FEIYING_HOST_MOVIES=$1|" "$COMPOSE"
     save_setting movie_dir "$1"
 }
 

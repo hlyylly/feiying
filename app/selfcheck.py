@@ -20,6 +20,32 @@ def run_once():
         run()
 
 
+def _mount_source(path):
+    """从 /proc/self/mountinfo 拿挂载源。注意字段 4 是**相对源文件系统根**的路径:
+    宿主上 /vol3 若是独立存储池分区,这里只会给出 /1000/影视/xxx(少了 /vol3),
+    所以只能当线索给,不能让用户照抄。"""
+    try:
+        with open("/proc/self/mountinfo", encoding="utf-8") as f:
+            for line in f:
+                p = line.split()
+                if len(p) > 4 and p[4] == path:
+                    return p[3]
+    except Exception:
+        pass
+    return ""
+
+
+def _host_path(label, path, env):
+    """返回宿主路径说明。fpk 会把向导里填的真实路径注入环境变量,那才是能直接抄的。"""
+    real = (os.environ.get(env) or "").strip()
+    if real:
+        return "宿主目录 %s ← 飞牛媒体库就指这个" % real
+    src = _mount_source(path)
+    if src:
+        return "挂载源 %s(若存储池是独立分区,前面还要补 /volN)" % src
+    return ""
+
+
 def _check_dir(label, path):
     """返回 (一行说明, 问题描述或 None)。"""
     if not path:
@@ -50,11 +76,16 @@ def run():
     lines.append("飞影 v%s | 数据目录 %s%s"
                  % (__version__, DATA_DIR, " | 容器内运行" if IN_DOCKER else ""))
 
-    for label, path in (("剧集目录", cfg.media_dir), ("电影目录", cfg.movie_dir)):
+    for label, path, env in (("剧集目录", cfg.media_dir, "FEIYING_HOST_TV"),
+                             ("电影目录", cfg.movie_dir, "FEIYING_HOST_MOVIES")):
         line, prob = _check_dir(label, path)
         lines.append(line)
         if prob:
             problems.append(prob)
+        elif IN_DOCKER:
+            hint = _host_path(label, path, env)
+            if hint:
+                lines.append("  └ %s" % hint)
 
     if cfg.media_dir and cfg.media_dir == cfg.movie_dir:
         problems.append("剧集目录和电影目录填成了同一个:飞牛的电视剧库和电影库会互相扫到对方的内容,建议分开")
