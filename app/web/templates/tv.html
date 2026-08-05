@@ -74,7 +74,8 @@ async function ingest() {
   try {
     const fd = new FormData(); fd.append('name', name);
     const r = await (await fetch('/ingest', {method:'POST', body:fd})).json();
-    msg.textContent = r.ok ? ('✅ ' + (r.msg || '已入库') + ' · 刷新中…') : ('❌ ' + (r.msg || r.status || '失败'));
+    msg.textContent = r.ok ? ('✅ 《' + (r.show || '') + '》' + (r.msg || '已入库') + ' · 刷新中…')
+                           : ('❌ ' + (r.msg || r.status || '失败'));
     if (r.ok) setTimeout(() => location.reload(), 1200);
   } catch (e) { msg.textContent = '❌ ' + e; }
   document.getElementById('goBtn').disabled = false;

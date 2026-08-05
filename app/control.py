@@ -4,6 +4,14 @@ import time
 from . import state, finder, strm, ai, follows, library
 
 
+def _end(rec, status, msg):
+    """收尾:记结果 + 落一行日志。成功路径也要打印 —— 不然日志页上只能看到
+    搜索过程,最关键的「到底入没入库」反而查不到。"""
+    rec["status"], rec["msg"] = status, msg
+    print("[control] 《%s》%s" % (rec["show"], msg), flush=True)
+    return rec
+
+
 async def ingest(text):
     """text=片名/自然语言描述。返回记录 dict(msg 为给前端看的一句话结果)。"""
     rec = {"name": text, "show": text, "count": 0, "status": "running",
@@ -14,9 +22,7 @@ async def ingest(text):
         rec["show"] = film
         result = await finder.find(film)
         if not result:
-            rec["status"] = "no_result"
-            rec["msg"] = "没搜到《%s》的资源" % film
-            return rec
+            return _end(rec, "no_result", "没搜到资源(搜索过程见上面几行)")
         if result.get("type") == "movie":
             yr = (" %d" % result["year"]) if result.get("year") else ""
             rec["show"] = result.get("title") or film
@@ -25,30 +31,23 @@ async def ingest(text):
                                               result["channel"], result["parts"])
                 library.add_movie_parts(rec["show"], result.get("year"),
                                         result["channel"], result["parts"])
-                rec["msg"] = "电影《%s%s》已入库(%d 段),去飞牛刷新即可" % (rec["show"], yr, n)
+                msg = "电影%s 已入库(%d 段) → %s,去飞牛刷新即可" % (yr, n, d)
             else:
                 n, d = strm.write_movie(rec["show"], result.get("year"), result["channel"],
                                         result["mid"], result.get("filename", ""))
                 library.add_movie(rec["show"], result.get("year"), result["channel"],
                                   result["mid"], result.get("filename", ""))
-                rec["msg"] = "电影《%s%s》已入库,去飞牛刷新即可" % (rec["show"], yr)
+                msg = "电影%s 已入库 → %s,去飞牛刷新即可" % (yr, d)
             rec["count"] = n
-            rec["status"] = "done"
-            return rec
+            return _end(rec, "done", msg)
         if not result.get("episodes"):
-            rec["status"] = "no_result"
-            rec["msg"] = "没搜到《%s》的成套剧集" % film
-            return rec
+            return _end(rec, "no_result", "没搜到成套剧集")
         season = result.get("season", 1)
         n, d = strm.write_strm(film, result["channel"], result["episodes"], season)
         library.add_series(film, result["channel"], result["episodes"], season)
         follows.add(film, season)    # 剧集自动加入追更
         rec["count"] = n
-        rec["status"] = "done"
-        rec["msg"] = "剧集《%s》已入库 %d 集(已加入追更),去飞牛刷新即可" % (film, n)
-        return rec
+        return _end(rec, "done", "已入库 %d 集(已加入追更) → %s,去飞牛刷新即可" % (n, d))
     except Exception as e:
-        rec["status"] = "error"
-        rec["msg"] = "出错: %r" % e
-        print("[control] ingest err", repr(e), flush=True)
-        return rec
+        print("[control] ingest 出错", repr(e), flush=True)
+        return _end(rec, "error", "出错: %r" % e)

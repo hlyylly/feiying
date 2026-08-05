@@ -162,7 +162,7 @@ async function verify(){ const m=document.getElementById('loginMsg'); m.textCont
   m.textContent=r.msg; if(r.ok) setTimeout(()=>location.reload(),1200); }
 async function ingest(){ const m=document.getElementById('ingestMsg'); m.textContent='处理中…(搜索+AI匹配需十几秒)';
   const r=await post('/ingest',{name:document.getElementById('film').value});
-  m.textContent=(r.ok?'✅ ':'❌ ')+(r.msg||r.status);
+  m.textContent=(r.ok?'✅ ':'❌ ')+'《'+(r.show||'')+'》'+(r.msg||r.status);
   if(r.ok) setTimeout(()=>location.reload(),1500); }
 async function unfollow(show){ await post('/unfollow',{show}); location.reload(); }
 async function checkNow(){ const m=document.getElementById('followMsg'); m.textContent='触发中…';
