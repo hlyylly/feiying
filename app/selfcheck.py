@@ -46,6 +46,23 @@ def _host_path(label, path, env):
     return ""
 
 
+def host_hint(path, env):
+    """给 Web 配置页用:这个容器内目录对应 NAS 上的哪儿。
+    改容器内路径不会改变文件落到 NAS 的位置 —— 那是 Docker 挂载决定的,
+    很多人以为在这里改个路径文件就搬家了,结果 .strm 全写进容器可写层。"""
+    if not IN_DOCKER or not path:
+        return ""
+    if not os.path.isdir(path):
+        return "⚠ 容器里没有这个目录"
+    if not os.path.ismount(path):
+        return "⚠ 没挂载到 NAS:写进去的 .strm 只存在容器里,飞牛看不到。要换位置得改 Docker 挂载,不是改这里"
+    real = (os.environ.get(env) or "").strip()
+    if real:
+        return "→ NAS 上的位置: %s" % real
+    src = _mount_source(path)
+    return ("→ NAS 上的位置(挂载源): %s,存储池是独立分区的话前面还要补 /volN" % src) if src else ""
+
+
 def _check_dir(label, path):
     """返回 (一行说明, 问题描述或 None)。"""
     if not path:

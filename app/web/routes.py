@@ -49,7 +49,9 @@ def create_app():
     async def index(request: Request, err: str = ""):
         return _render(request, "index.html",
                        {"cfg": state.cfg.public_dict(), "st": service.status(),
-                        "lan_ip": _lan_ip(request), "err": err})
+                        "lan_ip": _lan_ip(request), "err": err,
+                        "tv_host": selfcheck.host_hint(state.cfg.media_dir, "FEIYING_HOST_TV"),
+                        "movie_host": selfcheck.host_hint(state.cfg.movie_dir, "FEIYING_HOST_MOVIES")})
 
     @app.post("/save")
     async def save(

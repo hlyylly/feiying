@@ -114,9 +114,15 @@
       <div><label>deepseek 模型</label><input name="deepseek_model" value="{{ cfg.deepseek_model }}"></div>
     </div>
     <div class="row">
-      <div><label>剧集目录(容器内)</label><input name="media_dir" value="{{ cfg.media_dir }}"></div>
-      <div><label>电影目录(容器内)</label><input name="movie_dir" value="{{ cfg.movie_dir }}"></div>
+      <div><label>剧集目录(容器内)</label><input name="media_dir" value="{{ cfg.media_dir }}">
+        {% if tv_host %}<div class="hint" {% if '⚠' in tv_host %}style="color:var(--bad)"{% endif %}>{{ tv_host }}</div>{% endif %}</div>
+      <div><label>电影目录(容器内)</label><input name="movie_dir" value="{{ cfg.movie_dir }}">
+        {% if movie_host %}<div class="hint" {% if '⚠' in movie_host %}style="color:var(--bad)"{% endif %}>{{ movie_host }}</div>{% endif %}</div>
     </div>
+    {% if tv_host or movie_host %}
+    <div class="hint">这两个是<b>容器内</b>路径。改它不会让文件搬到 NAS 的别处 —— 文件落在 NAS 哪里由 Docker 挂载决定,
+      要换位置请改容器的挂载配置(或 fpk 安装向导),不是改这里。</div>
+    {% endif %}
     <label>stream_base(飞牛/播放器访问缓存流服务的<b>网址</b>,不是目录)</label>
     <input id="sbase" name="stream_base" value="{{ cfg.stream_base }}" placeholder="http://{{ lan_ip }}:{{ cfg.stream_port }}">
     <div class="hint">必须是 <code>http://局域网IP:流端口</code>,填目录路径或 127.0.0.1 都会导致飞牛/PotPlayer 打不开。
