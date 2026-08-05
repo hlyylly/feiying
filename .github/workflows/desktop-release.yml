@@ -35,10 +35,15 @@ jobs:
 
       - name: 下载 mpv + xray
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           New-Item -ItemType Directory -Force dist/feiying/bin | Out-Null
           # mpv: zhongfly 构建的 latest x86_64 包(7z)
-          $rel = Invoke-RestMethod https://api.github.com/repos/zhongfly/mpv-winbuild/releases/latest
+          # 必须带 token:未认证的 api.github.com 每小时只有 60 次、还跟同 IP 的其他
+          # runner 共享,一天发几个版本就会 403 rate limit exceeded 把构建打挂
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN" }
+          $rel = Invoke-RestMethod https://api.github.com/repos/zhongfly/mpv-winbuild/releases/latest -Headers $headers
           $asset = $rel.assets | Where-Object { $_.name -match '^mpv-x86_64-2' -and $_.name -notmatch 'v3' } | Select-Object -First 1
           Invoke-WebRequest $asset.browser_download_url -OutFile mpv.7z
           7z x mpv.7z -ompvx | Out-Null
