@@ -38,8 +38,8 @@ def _mount_source(path):
 def _host_path(label, path, env):
     """返回宿主路径说明。fpk 会把向导里填的真实路径注入环境变量,那才是能直接抄的。"""
     real = (os.environ.get(env) or "").strip()
-    if real:
-        return "宿主目录 %s ← 飞牛媒体库就指这个" % real
+    if real:   # 系统目录别说「就指这个」,下一行紧接着就要说飞牛选不了它,自相矛盾
+        return "宿主目录 %s%s" % (real, "" if "/@" in real else " ← 飞牛媒体库就指这个")
     src = _mount_source(path)
     if src:
         return "挂载源 %s(若存储池是独立分区,前面还要补 /volN)" % src
@@ -58,9 +58,22 @@ def host_hint(path, env):
         return "⚠ 没挂载到 NAS:写进去的 .strm 只存在容器里,飞牛看不到。要换位置得改 Docker 挂载,不是改这里"
     real = (os.environ.get(env) or "").strip()
     if real:
+        if "/@" in real:
+            return ("⚠ NAS 上的位置: %s —— 这是飞牛的系统目录,飞牛影视的媒体库选择器"
+                    "看不到 @ 开头的目录,要改容器挂载指到你自己的目录" % real)
         return "→ NAS 上的位置: %s" % real
     src = _mount_source(path)
     return ("→ NAS 上的位置(挂载源): %s,存储池是独立分区的话前面还要补 /volN" % src) if src else ""
+
+
+def _sys_dir_warn(label, hostpath):
+    """飞牛的 @appdata/@appconf 这类系统目录,在飞牛影视的「选择文件夹」里是**灰的、选不中**。
+    .strm 落在那儿等于媒体库永远建不起来 —— 而 fpk 没套用向导目录时默认就落在那儿。"""
+    if not hostpath or "/@" not in hostpath:
+        return None
+    return ("%s 落在飞牛的系统目录 %s 里 —— 飞牛影视的媒体库选择器看不到 @ 开头的目录,"
+            "必须把容器挂载改到你自己的目录(如 /vol1/1000/影视/xxx)再重新入库"
+            % (label, hostpath))
 
 
 def _check_dir(label, path):
@@ -103,6 +116,10 @@ def run():
             hint = _host_path(label, path, env)
             if hint:
                 lines.append("  └ %s" % hint)
+            warn = _sys_dir_warn(label, (os.environ.get(env) or "").strip() or _mount_source(path))
+            if warn:
+                problems.append(warn)
+                lines.append("  └ ⚠ 飞牛影视选不了 @ 开头的系统目录做媒体库")
 
     if cfg.media_dir and cfg.media_dir == cfg.movie_dir:
         problems.append("剧集目录和电影目录填成了同一个:飞牛的电视剧库和电影库会互相扫到对方的内容,建议分开")
@@ -124,6 +141,16 @@ def run():
     lines.append("代理: %s | TG: %s"
                  % ("外部代理" if cfg.proxy_url else "内置 xray" if cfg.vmess else "直连",
                     "已登录" if cfg.session else "未登录"))
+
+    # fpk 安装脚本留下的痕迹:向导目录到底有没有套用进 compose,只能从这里看
+    applylog = os.path.join(DATA_DIR, ".fpk_apply.log")
+    if os.path.isfile(applylog):
+        try:
+            tail = [l.strip() for l in open(applylog, encoding="utf-8").read().splitlines() if l.strip()]
+            for l in tail[-4:]:
+                lines.append("fpk安装 " + l)
+        except Exception:
+            pass
 
     for ln in lines:
         print("[自检] " + ln, flush=True)

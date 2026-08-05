@@ -4,11 +4,24 @@
 
 COMPOSE="${TRIM_APPDEST}/docker/docker-compose.yaml"
 SETTINGS="${TRIM_PKGVAR}/.fpk_settings"
+# 写进 data 目录(容器里的 /data),这样自检能读出来 —— 安装脚本的输出用户根本看不到,
+# 出了问题只能靠 SSH 翻,这个日志是唯一能让人自助诊断向导有没有生效的东西。
+APPLY_LOG="${TRIM_PKGVAR}/data/.fpk_apply.log"
 
-# fnOS 把向导变量写进 INST_VARIABLES 指向的文件(key=value);读进来
+log() {
+    mkdir -p "${TRIM_PKGVAR}/data" 2>/dev/null || true
+    echo "$(date '+%F %T') $*" >> "$APPLY_LOG" 2>/dev/null || true
+}
+
+# fnOS 把向导变量写进 INST_VARIABLES 指向的文件(key=value);读进来。
+# 万一它不是这个机制,wizard_* 也可能已经直接在环境里,所以读不到文件也继续往下走。
 if [ -n "${INST_VARIABLES}" ] && [ -r "${INST_VARIABLES}" ]; then
     . "${INST_VARIABLES}"
+    log "已读取 INST_VARIABLES=${INST_VARIABLES}"
+else
+    log "INST_VARIABLES 不可读(值='${INST_VARIABLES}'),改用环境里的 wizard_* 变量"
 fi
+log "向导取到: tv='${wizard_tv_dir}' movie='${wizard_movie_dir}' uid='${wizard_uid_gid}' web='${wizard_web_port}' stream='${wizard_stream_port}'"
 
 save_setting() {  # save_setting key value
     [ -f "$SETTINGS" ] || : > "$SETTINGS"
@@ -18,8 +31,12 @@ save_setting() {  # save_setting key value
 }
 
 apply_tv_dir() {
-    [ -z "$1" ] && return
+    if [ -z "$1" ]; then
+        log "剧集目录为空,compose 保持默认 @appdata —— 飞牛影视选不了 @ 开头的目录,媒体库会建不起来"
+        return
+    fi
     mkdir -p "$1" 2>/dev/null || true
+    log "剧集目录套用为 $1"
     sed -i "s|^      - .*:/media/tv\$|      - $1:/media/tv|" "$COMPOSE"
     # 把宿主真实路径传给容器,自检好告诉用户飞牛媒体库该指哪个目录
     sed -i "s|^      - FEIYING_HOST_TV=.*\$|      - FEIYING_HOST_TV=$1|" "$COMPOSE"
@@ -27,8 +44,12 @@ apply_tv_dir() {
 }
 
 apply_movie_dir() {
-    [ -z "$1" ] && return
+    if [ -z "$1" ]; then
+        log "电影目录为空,compose 保持默认 @appdata —— 同上,媒体库会建不起来"
+        return
+    fi
     mkdir -p "$1" 2>/dev/null || true
+    log "电影目录套用为 $1"
     sed -i "s|^      - .*:/media/movies\$|      - $1:/media/movies|" "$COMPOSE"
     sed -i "s|^      - FEIYING_HOST_MOVIES=.*\$|      - FEIYING_HOST_MOVIES=$1|" "$COMPOSE"
     save_setting movie_dir "$1"
