@@ -277,78 +277,106 @@ class CacheServer:
         except Exception as e:
             print("[cache] next ep err", repr(e), flush=True)
 
-    def _hdr(self, status, extra):
-        lines = ["HTTP/1.1 " + status, "Accept-Ranges: bytes", "Connection: close"] + extra
+    def _hdr(self, status, extra, keep=False):
+        lines = ["HTTP/1.1 " + status,
+                 "Accept-Ranges: bytes",
+                 "Connection: " + ("keep-alive" if keep else "close")] + extra
         return ("\r\n".join(lines) + "\r\n\r\n").encode("latin1")
 
     async def _handle(self, reader, writer):
+        """一条连接上可以连续处理多个请求。
+        播放器是按小段取片的,每段都新建 TCP 的话每次都要重走慢启动
+        (实测电视每秒开 110 条连接,cwnd 一直卡在 10 出不去),于是边看边卡。"""
         try:
-            line = await reader.readline()
-            if not line:
-                writer.close(); return
-            parts = line.decode("latin1").strip().split(" ")
-            if len(parts) < 2:
-                writer.close(); return
-            method, path = parts[0], parts[1]
-            rng = None
-            while True:
-                h = await reader.readline()
-                if h in (b"\r\n", b"\n", b""):
-                    break
-                hl = h.decode("latin1", "ignore").strip()
-                if hl.lower().startswith("range:"):
-                    rng = hl.split(":", 1)[1].strip()
-            m = re.match(r"/([A-Za-z0-9_]+)/(\d+)", path)
-            if not m:
-                writer.write(self._hdr("404 Not Found", ["Content-Length: 0"])); await writer.drain(); writer.close(); return
-            ch, mid = m.group(1), int(m.group(2))
-            try:
-                msg = await self.get_msg(ch, mid)
-            except Exception:
-                writer.write(self._hdr("502 Bad Gateway", ["Content-Length: 0"])); await writer.drain(); writer.close(); return
-            if not msg or not msg.file:
-                writer.write(self._hdr("404 Not Found", ["Content-Length: 0"])); await writer.drain(); writer.close(); return
-            size = msg.file.size
-            ctype = msg.file.mime_type or "video/mp4"
-            start, end, status = 0, size - 1, "200 OK"
-            if rng:
-                mm = re.match(r"bytes=(\d+)-(\d*)", rng)
-                if mm:
-                    start = int(mm.group(1))
-                    if mm.group(2):
-                        end = int(mm.group(2))
-                    status = "206 Partial Content"
-            length = end - start + 1
-            extra = ["Content-Type: " + ctype, "Content-Length: " + str(length)]
-            if status.startswith("206"):
-                extra.append("Content-Range: bytes %d-%d/%d" % (start, end, size))
-            writer.write(self._hdr(status, extra)); await writer.drain()
-            if method == "HEAD":
-                writer.close(); return
-            c = self.get_cacher((ch, mid), size, msg, chain=True)
-            c.demand = start // BLOCK
-            c.start_prefetch()
-            bs, be = start // BLOCK, end // BLOCK
-            for blk in range(bs, be + 1):
-                if writer.is_closing():
-                    break    # 客户端已经走了:write 不报错、drain 立刻返回,
-                             # 再循环下去会把整部片子空读一遍(实测读140MB才发出5MB)
-                data = await c.get_block(blk)
-                blkoff = blk * BLOCK
-                s_in = max(start, blkoff) - blkoff
-                e_in = min(end, blkoff + len(data) - 1) - blkoff
-                if e_in >= s_in:
-                    writer.write(data[s_in:e_in + 1]); await writer.drain()
-            writer.close()
+            while await self._one_request(reader, writer):
+                pass
         except (ConnectionResetError, BrokenPipeError, asyncio.CancelledError, ConnectionError):
-            try: writer.close()
-            except Exception: pass
+            pass
         except Exception as e:
             print("[cache] handle err", repr(e), flush=True)
-            try:
-                writer.write(self._hdr("500 Error", ["Content-Length: 0"])); await writer.drain(); writer.close()
-            except Exception:
-                pass
+        try:
+            writer.close()
+        except Exception:
+            pass
+
+    async def _one_request(self, reader, writer):
+        """处理一个请求。返回 True 表示这条连接还能继续复用。"""
+        line = await reader.readline()
+        if not line:
+            return False
+        parts = line.decode("latin1").strip().split(" ")
+        if len(parts) < 2:
+            return False
+        method, path = parts[0], parts[1]
+        rng, cli_close = None, False
+        while True:
+            h = await reader.readline()
+            if h == b"":
+                return False                      # 请求还没读完对端就断了
+            if h in (b"\r\n", b"\n"):
+                break
+            hl = h.decode("latin1", "ignore").strip()
+            low = hl.lower()
+            if low.startswith("range:"):
+                rng = hl.split(":", 1)[1].strip()
+            elif low.startswith("connection:") and "close" in low:
+                cli_close = True
+
+        async def fail(status):
+            writer.write(self._hdr(status, ["Content-Length: 0"]))
+            await writer.drain()
+            return False
+
+        m = re.match(r"/([A-Za-z0-9_]+)/(\d+)", path)
+        if not m:
+            return await fail("404 Not Found")
+        ch, mid = m.group(1), int(m.group(2))
+        try:
+            msg = await self.get_msg(ch, mid)
+        except Exception:
+            return await fail("502 Bad Gateway")
+        if not msg or not msg.file:
+            return await fail("404 Not Found")
+
+        size = msg.file.size
+        ctype = msg.file.mime_type or "video/mp4"
+        start, end, status = 0, size - 1, "200 OK"
+        if rng:
+            mm = re.match(r"bytes=(\d+)-(\d*)", rng)
+            if mm:
+                start = int(mm.group(1))
+                if mm.group(2):
+                    end = min(int(mm.group(2)), size - 1)
+                status = "206 Partial Content"
+        if start >= size:
+            return await fail("416 Range Not Satisfiable")
+
+        keep = not cli_close
+        length = end - start + 1
+        extra = ["Content-Type: " + ctype, "Content-Length: " + str(length)]
+        if status.startswith("206"):
+            extra.append("Content-Range: bytes %d-%d/%d" % (start, end, size))
+        writer.write(self._hdr(status, extra, keep=keep))
+        await writer.drain()
+        if method == "HEAD":
+            return keep
+
+        c = self.get_cacher((ch, mid), size, msg, chain=True)
+        c.demand = start // BLOCK
+        c.start_prefetch()
+        for blk in range(start // BLOCK, end // BLOCK + 1):
+            if writer.is_closing():
+                # 客户端走了:write 不报错、drain 立刻返回,再循环下去会把整部片子空读一遍。
+                # 此时 body 没发全,连接已经不同步,不能再复用。
+                return False
+            data = await c.get_block(blk)
+            blkoff = blk * BLOCK
+            s_in = max(start, blkoff) - blkoff
+            e_in = min(end, blkoff + len(data) - 1) - blkoff
+            if e_in >= s_in:
+                writer.write(data[s_in:e_in + 1])
+                await writer.drain()
+        return keep
 
     def cache_usage_gb(self):
         total = 0
