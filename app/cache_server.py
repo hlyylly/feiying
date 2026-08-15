@@ -2,11 +2,12 @@
 原生 asyncio HTTP(避开 aiohttp 对飞牛重复 User-Agent 报400);4MB块位图缓存 + .bm持久化;
 多连接预取(环形扫描,别超5并发否则TG flood-wait);命中本地pread秒回,miss telethon兜底;
 当前集下满自动滚动预取下一集;LRU 配额淘汰。用全局共享 client(state.client)。"""
-import asyncio, os, re
+import asyncio, os, re, time
 from . import state
 from .config import CACHE_DIR
 
 BLOCK = 4 * 1024 * 1024
+CHAIN_COOLDOWN = 300      # 同一集多久内不重复查下一集(秒)
 
 
 def _name(ch, mid):
@@ -123,17 +124,22 @@ class Cacher:
             self.prefetch_task = asyncio.create_task(self._prefetch_loop())
 
     async def _prefetch_loop(self):
+        got = 0
         async def worker():
+            nonlocal got
             while True:
                 blk = self._next_missing()
                 if blk is None:
                     return
                 try:
                     await self.get_block(blk)
+                    got += 1
                 except Exception as e:
                     print("[cache] prefetch blk err", self.mid, blk, repr(e), flush=True)
                     await asyncio.sleep(1)
         await asyncio.gather(*[worker() for _ in range(self.srv.workers)])
+        if not got:
+            return    # 本来就下满了:不刷日志,更不能再去查下一集(每次都是一个TG请求)
         print("[cache] prefetch done %s %d %d/%d" % (self.ch, self.mid, self.cached_blocks(), self.nblocks), flush=True)
         if self.chain:
             await self.srv.prefetch_next_episode(self.ch, self.mid)
@@ -147,6 +153,7 @@ class CacheServer:
         self.port = cfg.stream_port
         self.dl_sem = None
         self.msgcache = {}
+        self._chain_at = {}
         self.cachers = {}
         self.server = None
 
@@ -247,6 +254,12 @@ class CacheServer:
             print("[cache] resume err", repr(e), flush=True)
 
     async def prefetch_next_episode(self, ch, mid):
+        # 查下一集要发一个 TG 请求,和下载块共用同一条 telethon 连接。
+        # 同一集短时间内只查一次,否则播放器每来一个 range 就问一次,把下载挤住。
+        now = time.monotonic()
+        if now - self._chain_at.get((ch, mid), 0.0) < CHAIN_COOLDOWN:
+            return
+        self._chain_at[(ch, mid)] = now
         try:
             ent = await state.client.get_entity(ch)
             async for m in state.client.iter_messages(ent, min_id=mid, reverse=True, limit=12):
