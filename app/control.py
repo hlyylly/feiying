@@ -1,7 +1,7 @@
 """入库管线:片名/自然语言描述 → AI 识别 → 搜索 → 写 .strm + 库索引。
 入口只有 Web(/ingest),不监听 Telegram 任何会话。"""
 import time
-from . import state, finder, strm, ai, follows, library
+from . import state, finder, strm, ai, follows, library, prepare
 
 
 def _end(rec, status, msg):
@@ -43,10 +43,19 @@ async def ingest(text):
         if not result.get("episodes"):
             return _end(rec, "no_result", "没搜到成套剧集")
         season = result.get("season", 1)
-        n, d = strm.write_strm(film, result["channel"], result["episodes"], season)
         library.add_series(film, result["channel"], result["episodes"], season)
         follows.add(film, season)    # 剧集自动加入追更
-        rec["count"] = n
+        rec["count"] = len(result["episodes"])
+        bad, gap = await prepare.check_and_route(film, season, result["channel"],
+                                                 result["episodes"])
+        if bad:
+            # 这版片源音视频没交错,发 .strm 让飞牛直接拉会卡成幻灯片。
+            # 先不发,后台下满+转封装成真文件,好一集在飞牛里出现一集。
+            return _end(rec, "done",
+                        "共 %d 集。这版片源音视频相隔 %d MB,直接放会卡,"
+                        "正在后台重新封装,好一集出现一集(第一集约几分钟)"
+                        % (rec["count"], gap // 1048576))
+        n, d = strm.write_strm(film, result["channel"], result["episodes"], season)
         return _end(rec, "done", "已入库 %d 集(已加入追更) → %s,去飞牛刷新即可" % (n, d))
     except Exception as e:
         print("[control] ingest 出错", repr(e), flush=True)

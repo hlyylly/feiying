@@ -1,6 +1,6 @@
 """追更:定时对追更列表里的剧重新发现,只补新增集,结果记进 Web 首页的入库记录。"""
 import asyncio, glob, os, re, time
-from . import state, finder, strm, follows, library
+from . import state, finder, strm, follows, library, prepare
 
 
 def existing_eps(show, season=1):
@@ -26,9 +26,13 @@ async def check_one(show, season=1):
     res = await finder.materialize(disc, eps=set(new))
     if not res or not res.get("episodes"):
         return 0
-    n, d = strm.write_strm(show, res["channel"], res["episodes"],
-                           res.get("season", season), clear=False)
-    library.add_series(show, res["channel"], res["episodes"], res.get("season", season))
+    sea = res.get("season", season)
+    library.add_series(show, res["channel"], res["episodes"], sea)
+    bad, _ = await prepare.check_and_route(show, sea, res["channel"], res["episodes"])
+    if bad:                       # 坏交错片源:不发 .strm,后台转封装好再出现
+        n, d = len(res["episodes"]), "后台准备中"
+    else:
+        n, d = strm.write_strm(show, res["channel"], res["episodes"], sea, clear=False)
     eps = sorted(e["ep"] for e in res["episodes"])
     print("[updater] 《%s》+%d集 %s" % (show, n, eps), flush=True)
     state.add_ingest({"name": show, "show": show, "count": n, "status": "done",

@@ -7,6 +7,8 @@ RUN chmod +x /usr/local/bin/xray
 
 WORKDIR /app
 COPY requirements.txt .
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 RUN chmod -R a+rX /app        # 允许任意 uid(如以 admin 1000 跑) 读代码
