@@ -330,6 +330,9 @@ class CacheServer:
             c.start_prefetch()
             bs, be = start // BLOCK, end // BLOCK
             for blk in range(bs, be + 1):
+                if writer.is_closing():
+                    break    # 客户端已经走了:write 不报错、drain 立刻返回,
+                             # 再循环下去会把整部片子空读一遍(实测读140MB才发出5MB)
                 data = await c.get_block(blk)
                 blkoff = blk * BLOCK
                 s_in = max(start, blkoff) - blkoff
